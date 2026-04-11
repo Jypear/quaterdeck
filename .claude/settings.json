@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/jpear/quaterdeck && source .venv/bin/activate && ruff check --fix . && ruff format . 2>/dev/null || true",
+            "statusMessage": "Running ruff check + format..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATUS=$(cd /Users/jpear/quaterdeck && git status --short 2>/dev/null); [ -n \"$STATUS\" ] && jq -n --arg s \"Uncommitted changes detected — please commit or stash before continuing:\\n\\n${STATUS}\" '{systemMessage: $s}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working With Claude
+
+- **Never run `git commit` or `git push`** — the user handles all commits. You may run read-only git commands (`git status`, `git log`, `git diff`) freely.
+- **After every response where you made code changes**, include a `---` separator followed by a **Commit message breakdown** section: a short imperative subject line, then a bullet list of what changed and why. Keep it concise so the user can copy it directly into a commit message.
+
 ## Project Overview
 
 Quaterdeck is a self-hosted personal life OS — budget tracking, task management, projects, calendar, and AI-assisted notes — built as a Django monolith with a server-rendered frontend. See `PLAN.md` for the full feature spec and data models.
