@@ -1,0 +1,54 @@
+[project]
+name = "quaterdeck"
+version = "0.1.0"
+description = "Self-hosted personal life OS — budget, tasks, projects, calendar, AI notes"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.1",
+    "djangorestframework>=3.15",
+    "psycopg2-binary>=2.9",
+    "cryptography>=42.0",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.4",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "RUF", # ruff-specific rules
+    "DJ",  # flake8-django
+    "PT",  # flake8-pytest-style
+    "ANN", # flake8-annotations
+    "ARG", # flake8-unused-arguments
+    "PIE", # flake8-pie
+    "T20", # flake8-print (no stray print statements)
+]
+ignore = [
+    "ANN401", # Allow `Any` where Django internals require it (e.g. get_prep_value)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["quaterdeck", "core", "budget", "projects", "tasks", "notes", "ai"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*.py" = ["E501", "N806", "ANN", "RUF012", "RUF001"]
+"*/models.py" = ["RUF012"]   # Django Meta class attributes are intentionally mutable
+"manage.py" = ["ANN"]
+"*/admin.py" = ["ANN", "ARG002"]  # Django admin overrides have complex signatures

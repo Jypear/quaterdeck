@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Projects — Quaterdeck{% endblock %}
+{% block nav_projects %}active{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Projects</h1>
+{% if projects %}
+<ul class="list-group">
+  {% for project in projects %}
+  <li class="list-group-item">
+    <a href="{% url 'projects:detail' project.pk %}">{{ project.name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">No projects yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard — Quaterdeck{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Dashboard</h1>
+<div class="row g-3">
+  <div class="col-12 col-md-6 col-xl-3">
+    <a href="{% url 'budget:overview' %}" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Budget</h5>
+          <p class="card-text text-muted">Income, outgoings, and surplus.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <a href="{% url 'tasks:list' %}" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Tasks</h5>
+          <p class="card-text text-muted">Your to-do list.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <a href="{% url 'projects:list' %}" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Projects</h5>
+          <p class="card-text text-muted">Linked tasks, notes, and pots.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <a href="{% url 'notes:list' %}" class="text-decoration-none">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Notes</h5>
+          <p class="card-text text-muted">Free-form notes with optional AI.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}
