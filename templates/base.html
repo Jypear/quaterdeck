@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Quaterdeck{% endblock %}</title>
 
-  {# Bootstrap 5 — served locally. Run: cp -r node_modules/bootstrap/dist/css/bootstrap.min.css static/vendor/bootstrap/ #}
+  {# Bootstrap 5 — served locally. Run: npm install && npm run vendor #}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
 
   {% block extra_css %}{% endblock %}

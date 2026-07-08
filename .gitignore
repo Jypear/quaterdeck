@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Node (used only to vendor Bootstrap/HTMX/Alpine into static/vendor/, see package.json)
+node_modules/

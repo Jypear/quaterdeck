@@ -1,0 +1,13 @@
+{
+  "name": "quaterdeck-vendor",
+  "private": true,
+  "description": "Pins Bootstrap/HTMX/Alpine versions and copies their dist builds into static/vendor/ so the app serves them locally with no CDN.",
+  "scripts": {
+    "vendor": "node scripts/vendor-assets.js"
+  },
+  "dependencies": {
+    "alpinejs": "^3.14.9",
+    "bootstrap": "^5.3.8",
+    "htmx.org": "^2.0.7"
+  }
+}
