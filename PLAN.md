@@ -70,49 +70,49 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - Switching view modes re-normalises the same entries — no separate budget per mode
 
 #### Accounts
-- [ ] User defines named accounts (e.g. "Personal Current", "Joint Account", "Savings")
-- [ ] Each income stream and outgoing is assigned to an account
-- [ ] Inter-account transfers are first-class entries (e.g. "Transfer £X from Personal to Joint on the 1st")
-- [ ] Each outgoing is linked to the account it comes out of — transfers are checked to ensure the receiving account is sufficiently funded to cover its outgoings
-- [ ] Per-account view: income in, outgoings out, transfers in/out, and whether the account is covered for the period
-- [ ] Accounts are independently selectable for display — user can view one account, several, or all together
-- [ ] No grouping or percentage-based splitting — account selection and manual transfer amounts give the user full control
+- [x] User defines named accounts (e.g. "Personal Current", "Joint Account", "Savings")
+- [x] Each income stream and outgoing is assigned to an account
+- [x] Inter-account transfers are first-class entries (e.g. "Transfer £X from Personal to Joint on the 1st")
+- [x] Each outgoing is linked to the account it comes out of — transfers are checked to ensure the receiving account is sufficiently funded to cover its outgoings
+- [x] Per-account view: income in, outgoings out, transfers in/out, and whether the account is covered for the period
+- [x] Accounts are independently selectable for display — user can view one account, several, or all together
+- [x] No grouping or percentage-based splitting — account selection and manual transfer amounts give the user full control
 
 #### Income
-- [ ] Multiple named income streams per account (e.g. salary, dividends, freelance, partner's salary)
-- [ ] Each stream: name, amount, account, frequency (weekly / monthly / yearly)
-- [ ] Normalised to active view period for totals
+- [x] Multiple named income streams per account (e.g. salary, dividends, freelance, partner's salary)
+- [x] Each stream: name, amount, account, frequency (weekly / monthly / yearly)
+- [x] Normalised to active view period for totals
 
 #### Outgoings
-- [ ] Categorised recurring expenses per account (e.g. rent, subscriptions, groceries)
-- [ ] Each outgoing: name, amount, category, account, frequency
-- [ ] **Actual vs. budgeted**: user can log the real amount spent against a recurring outgoing for the current period
-- [ ] Variance (actual − budgeted) flows back into the surplus calculation, affecting pot contributions for that period
+- [x] Categorised recurring expenses per account (e.g. rent, subscriptions, groceries)
+- [x] Each outgoing: name, amount, category, account, frequency
+- [ ] **Actual vs. budgeted**: user can log the real amount spent against a recurring outgoing for the current period — model + calculation done (`OutgoingVariance`), but there's no HTML form yet to log it; API/admin only
+- [x] Variance (actual − budgeted) flows back into the surplus calculation, affecting pot contributions for that period
 
 #### One-off Outgoings
-- [ ] Future-dated single payments (e.g. a large bill due in November)
-- [ ] Visible only in the budget period they fall in
-- [ ] Can be flagged to create or top up a linked pot — allowing the user to save toward it monthly ahead of time
-- [ ] Pot-linked one-offs show a "covered / uncovered" status based on pot balance vs. payment amount
+- [x] Future-dated single payments (e.g. a large bill due in November)
+- [x] Visible only in the budget period they fall in
+- [x] Can be flagged to create or top up a linked pot — allowing the user to save toward it monthly ahead of time
+- [ ] Pot-linked one-offs show a "covered / uncovered" status based on pot balance vs. payment amount — not built yet
 
 #### Budget Summary
-- [ ] Total income vs. total outgoings for the selected period (across all accounts)
-- [ ] Per-account breakdown available
-- [ ] Surplus after all recurring outgoings and transfers
-- [ ] Adjusted surplus after actual spend variances
-- [ ] Visual breakdown (Bootstrap progress bars / simple chart)
-- [ ] Unallocated surplus prominently shown as a nudge to allocate to pots
+- [x] Total income vs. total outgoings for the selected period (across all accounts)
+- [x] Per-account breakdown available
+- [x] Surplus after all recurring outgoings and transfers
+- [x] Adjusted surplus after actual spend variances
+- [x] Visual breakdown (Bootstrap progress bars / simple chart)
+- [x] Unallocated surplus prominently shown as a nudge to allocate to pots
 
 #### Pots
-- [ ] Named pots with a target amount, target date, and a monthly contribution target
-- [ ] Each period the user confirms the actual amount saved into the pot (manual entry)
-- [ ] App compares actual vs. monthly target: on track / behind / ahead
-- [ ] Shows how much more is needed per remaining period to hit the target by the deadline
-- [ ] User can be prompted: "You're behind — adjust your monthly contribution to £X to still hit the target"
-- [ ] User confirms whether to accept the adjusted contribution or leave it as-is
-- [ ] App shows unallocated surplus as guidance — never forces allocation
-- [ ] Spend variances in a period reduce the available surplus to contribute
-- [ ] Pots can be linked to a one-off outgoing or a Project
+- [x] Named pots with a target amount, target date, and a monthly contribution target
+- [ ] Each period the user confirms the actual amount saved into the pot (manual entry) — model supports it (`PotEntry`), no HTML form yet; API/admin only
+- [x] App compares actual vs. monthly target: on track / behind / ahead
+- [x] Shows how much more is needed per remaining period to hit the target by the deadline
+- [x] User can be prompted: "You're behind — adjust your monthly contribution to £X to still hit the target"
+- [ ] User confirms whether to accept the adjusted contribution or leave it as-is — still deferred, see below
+- [x] App shows unallocated surplus as guidance — never forces allocation
+- [x] Spend variances in a period reduce the available surplus to contribute
+- [x] Pots can be linked to a one-off outgoing or a Project
 
 ### Tasks
 - [ ] To-do list: title, due date, priority, status
@@ -280,10 +280,15 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 
 ## Next Steps
 
-1. Set up the Django project scaffold (uv + Ruff + Docker)
-2. Implement data models and migrations
-3. Define the DRF API contract (resources, endpoints, auth scheme)
-4. Build core budget views (account summary, income/outgoings, surplus)
-5. Build pots, projects, tasks, calendar
-6. Notes page
-7. AI provider abstraction layer (optional / last)
+1. [x] Set up the Django project scaffold (uv + Ruff + Docker)
+2. [x] Implement data models and migrations
+3. [x] Define the DRF API contract (resources, endpoints, auth scheme)
+4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching
+5. [ ] Build pots, projects, tasks, calendar
+   - [x] Pots — progress tracking and on-track/behind/ahead status (this pass)
+   - [x] Projects, Tasks — minimal read-only list/detail views (from scaffold); still no HTML create/edit forms
+   - [ ] Calendar — not started; no app, view, or route yet
+6. [ ] Notes page — minimal read-only list/detail views exist (from scaffold); no AI enrichment wired, no create/edit forms
+7. [ ] AI provider abstraction layer (optional / last) — `ai/providers.py` implements Anthropic/OpenAI/Ollama, but the `ai` app isn't in `INSTALLED_APPS` and nothing calls it yet
+
+**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), inbound/outbound webhooks, and HTML mutation forms for outgoing variances and pot entries (currently API/admin-only).
