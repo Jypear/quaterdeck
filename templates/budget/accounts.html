@@ -3,5 +3,26 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">Accounts</h1>
-<p class="text-muted">Account list coming soon.</p>
+{% include "budget/_subnav.html" %}
+
+<form id="account-filters" class="row g-3 align-items-start mb-4"
+      hx-get="{% url 'budget:accounts' %}"
+      hx-target="#account-summaries"
+      hx-push-url="true"
+      hx-trigger="change">
+  <div class="col-auto">
+    <span class="form-label d-block">View</span>
+    <div class="btn-group" role="group" aria-label="Budget view mode">
+      {% for value, label in mode_choices %}
+      <input type="radio" class="btn-check" name="mode" id="acct-mode-{{ value }}" value="{{ value }}"
+             {% if value == mode %}checked{% endif %} autocomplete="off">
+      <label class="btn btn-outline-primary" for="acct-mode-{{ value }}">{{ label }}</label>
+      {% endfor %}
+    </div>
+  </div>
+</form>
+
+<div id="account-summaries">
+  {% include "budget/_accounts.html" %}
+</div>
 {% endblock %}

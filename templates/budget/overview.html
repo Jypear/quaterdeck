@@ -3,5 +3,39 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 <h1 class="h3 mb-4">Budget</h1>
-<p class="text-muted">Budget overview coming soon.</p>
+{% include "budget/_subnav.html" %}
+
+<form id="budget-filters" class="row g-3 align-items-start mb-4"
+      hx-get="{% url 'budget:overview' %}"
+      hx-target="#budget-summary"
+      hx-push-url="true"
+      hx-trigger="change">
+  <div class="col-auto">
+    <span class="form-label d-block">View</span>
+    <div class="btn-group" role="group" aria-label="Budget view mode">
+      {% for value, label in mode_choices %}
+      <input type="radio" class="btn-check" name="mode" id="mode-{{ value }}" value="{{ value }}"
+             {% if value == mode %}checked{% endif %} autocomplete="off">
+      <label class="btn btn-outline-primary" for="mode-{{ value }}">{{ label }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col">
+    <span class="form-label d-block">Accounts</span>
+    <div class="d-flex flex-wrap gap-3">
+      {% for account in all_accounts %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="accounts" value="{{ account.id }}"
+               id="account-{{ account.id }}"
+               {% if not selected_account_ids or account.id in selected_account_ids %}checked{% endif %}>
+        <label class="form-check-label" for="account-{{ account.id }}">{{ account.name }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</form>
+
+<div id="budget-summary">
+  {% include "budget/_summary.html" %}
+</div>
 {% endblock %}

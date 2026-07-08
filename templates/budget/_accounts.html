@@ -1,0 +1,31 @@
+{% if account_summaries %}
+<div class="row g-3">
+  {% for row in account_summaries %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100 {% if row.covered %}border-success{% else %}border-danger{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="card-title mb-0">{{ row.account.name }}</h5>
+          {% if row.covered %}
+          <span class="badge bg-success">Covered</span>
+          {% else %}
+          <span class="badge bg-danger">Uncovered</span>
+          {% endif %}
+        </div>
+        <p class="text-muted text-uppercase small mb-3">{{ row.account.get_account_type_display }}</p>
+        <dl class="row mb-0 small">
+          <dt class="col-7">Income</dt><dd class="col-5 text-end">{{ currency }} {{ row.income|floatformat:2 }}</dd>
+          <dt class="col-7">Outgoings</dt><dd class="col-5 text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</dd>
+          <dt class="col-7">Transfers in</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }}</dd>
+          <dt class="col-7">Transfers out</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_out|floatformat:2 }}</dd>
+          <dt class="col-7">One-offs due</dt><dd class="col-5 text-end">{{ currency }} {{ row.one_offs|floatformat:2 }}</dd>
+          <dt class="col-7 fw-bold">Net</dt><dd class="col-5 text-end fw-bold">{{ currency }} {{ row.net|floatformat:2 }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No active accounts yet.</p>
+{% endif %}

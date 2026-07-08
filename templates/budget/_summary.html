@@ -1,0 +1,96 @@
+{% if summary.unallocated_surplus > 0 %}
+<div class="alert alert-info" role="alert">
+  You have <strong>{{ currency }} {{ summary.unallocated_surplus|floatformat:2 }}</strong> unallocated this period —
+  consider adding it to a pot.
+</div>
+{% elif summary.adjusted_surplus < 0 %}
+<div class="alert alert-warning" role="alert">
+  You're <strong>{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</strong> over budget this period after
+  variances and one-offs.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total income</h6>
+        <p class="card-text fs-4 mb-0">{{ currency }} {{ summary.total_income|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Total outgoings</h6>
+        <p class="card-text fs-4 mb-0">{{ currency }} {{ summary.total_outgoings|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card h-100 {% if summary.surplus >= 0 %}border-success{% else %}border-danger{% endif %}">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Surplus</h6>
+        <p class="card-text fs-4 mb-0">{{ currency }} {{ summary.surplus|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-3">
+    <div class="card h-100 {% if summary.adjusted_surplus >= 0 %}border-success{% else %}border-danger{% endif %}">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Adjusted surplus</h6>
+        <p class="card-text fs-4 mb-0">{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</p>
+        <small class="text-muted">after variances &amp; one-offs</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mb-4">
+  <div class="d-flex justify-content-between">
+    <small class="text-muted">Outgoings vs income</small>
+    <small class="text-muted">{{ outgoings_pct }}%</small>
+  </div>
+  <div class="progress" role="progressbar" aria-valuenow="{{ outgoings_pct }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-bar {% if outgoings_pct >= 100 %}bg-danger{% elif outgoings_pct >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+         style="width: {{ outgoings_pct }}%"></div>
+  </div>
+</div>
+
+<h2 class="h5 mb-3">Per account</h2>
+{% if summary.accounts %}
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th scope="col">Account</th>
+        <th scope="col" class="text-end">Income</th>
+        <th scope="col" class="text-end">Outgoings</th>
+        <th scope="col" class="text-end">Transfers</th>
+        <th scope="col" class="text-end">Net</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in summary.accounts %}
+      <tr>
+        <td>{{ row.account.name }}</td>
+        <td class="text-end">{{ currency }} {{ row.income|floatformat:2 }}</td>
+        <td class="text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</td>
+        <td class="text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }} in / {{ currency }} {{ row.transfers_out|floatformat:2 }} out</td>
+        <td class="text-end">{{ currency }} {{ row.net|floatformat:2 }}</td>
+        <td>
+          {% if row.covered %}
+          <span class="badge bg-success">Covered</span>
+          {% else %}
+          <span class="badge bg-danger">Uncovered</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">No active accounts selected.</p>
+{% endif %}
