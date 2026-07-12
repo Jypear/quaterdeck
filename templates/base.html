@@ -29,6 +29,9 @@
           <a class="nav-link {% block nav_tasks %}{% endblock %}" href="{% url 'tasks:list' %}">Tasks</a>
         </li>
         <li class="nav-item">
+          <a class="nav-link {% block nav_calendar %}{% endblock %}" href="{% url 'core:calendar' %}">Calendar</a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {% block nav_projects %}{% endblock %}" href="{% url 'projects:list' %}">Projects</a>
         </li>
         <li class="nav-item">
