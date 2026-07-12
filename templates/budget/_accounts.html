@@ -6,14 +6,18 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <h5 class="card-title mb-0">{{ row.account.name }}</h5>
-          {% if row.covered %}
-          <span class="badge bg-success">Covered</span>
-          {% else %}
-          <span class="badge bg-danger">Uncovered</span>
-          {% endif %}
+          <div class="d-flex align-items-center gap-2">
+            {% if row.covered %}
+            <span class="badge bg-success">Covered</span>
+            {% else %}
+            <span class="badge bg-danger">Uncovered</span>
+            {% endif %}
+            <a href="{% url 'budget:account_edit' row.account.id %}" class="link-secondary small">Edit</a>
+            <a href="{% url 'budget:account_delete' row.account.id %}" class="link-danger small">Delete</a>
+          </div>
         </div>
         <p class="text-muted text-uppercase small mb-3">{{ row.account.get_account_type_display }}</p>
-        <dl class="row mb-0 small">
+        <dl class="row mb-3 small">
           <dt class="col-7">Income</dt><dd class="col-5 text-end">{{ currency }} {{ row.income|floatformat:2 }}</dd>
           <dt class="col-7">Outgoings</dt><dd class="col-5 text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</dd>
           <dt class="col-7">Transfers in</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }}</dd>
@@ -21,6 +25,54 @@
           <dt class="col-7">One-offs due</dt><dd class="col-5 text-end">{{ currency }} {{ row.one_offs|floatformat:2 }}</dd>
           <dt class="col-7 fw-bold">Net</dt><dd class="col-5 text-end fw-bold">{{ currency }} {{ row.net|floatformat:2 }}</dd>
         </dl>
+
+        <h6 class="small text-uppercase text-muted mb-2">Income streams</h6>
+        {% if row.account.income_streams.all %}
+        <ul class="list-group list-group-flush small mb-2">
+          {% for income in row.account.income_streams.all %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <span>{{ income.name }} — {{ currency }} {{ income.amount|floatformat:2 }} / {{ income.get_frequency_display }}</span>
+            <span>
+              <a href="{% url 'budget:income_edit' income.id %}" class="link-secondary">Edit</a>
+              <a href="{% url 'budget:income_delete' income.id %}" class="link-danger ms-1">Delete</a>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <a href="{% url 'budget:income_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">+ Add income</a>
+
+        <h6 class="small text-uppercase text-muted mb-2">Outgoings</h6>
+        {% if row.account.outgoings.all %}
+        <ul class="list-group list-group-flush small mb-2">
+          {% for outgoing in row.account.outgoings.all %}
+          <li class="list-group-item px-0">
+            <div class="d-flex justify-content-between align-items-center">
+              <span>{{ outgoing.name }} — {{ currency }} {{ outgoing.amount|floatformat:2 }} / {{ outgoing.get_frequency_display }}</span>
+              <span>
+                <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="link-secondary">Edit</a>
+                <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1">Delete</a>
+              </span>
+            </div>
+            <form class="d-flex align-items-center gap-2 mt-1"
+                  hx-post="{% url 'budget:log_variance' outgoing.id %}?mode={{ mode }}"
+                  hx-target="#account-summaries" hx-swap="innerHTML">
+              {% csrf_token %}
+              <label class="text-muted text-nowrap">Actual this period</label>
+              <input type="number" step="0.01" name="actual_amount" class="form-control form-control-sm"
+                     value="{{ outgoing.variance.actual_amount|default_if_none:'' }}" required>
+              <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Log</button>
+              {% if outgoing.variance %}
+              <span class="badge {% if outgoing.variance.delta > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                {% if outgoing.variance.delta > 0 %}+{% endif %}{{ currency }} {{ outgoing.variance.delta|floatformat:2 }}
+              </span>
+              {% endif %}
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">+ Add outgoing</a>
       </div>
     </div>
   </div>

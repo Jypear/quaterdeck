@@ -2,7 +2,10 @@
 {% block title %}Accounts — Quaterdeck{% endblock %}
 {% block nav_budget %}active{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Accounts</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Accounts</h1>
+  <a href="{% url 'budget:account_add' %}" class="btn btn-sm btn-primary">+ Add account</a>
+</div>
 {% include "budget/_subnav.html" %}
 
 <form id="account-filters" class="row g-3 align-items-start mb-4"

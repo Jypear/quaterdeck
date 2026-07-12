@@ -1,4 +1,4 @@
-"""Unit tests for the budget engine (budget/services.py)."""
+"""Unit tests for the budget engine (budget/services.py) and write views."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from budget.models import (
     Account,
@@ -202,3 +203,84 @@ class PotProgressTests(TestCase):
         period = Period(date(2026, 7, 1), date(2026, 8, 1))
         progress = pot_progress(pot, Settings.BudgetMode.MONTHLY, period)
         assert progress.per_period_needed == Decimal("0")
+
+
+class LogVarianceViewTests(TestCase):
+    """POSTing to log_variance is the only way to fill OutgoingVariance from the browser."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.outgoing = Outgoing.objects.create(
+            name="Rent", amount=Decimal("1000"), category=self.category, frequency="monthly", account=self.account
+        )
+        settings = Settings.get()
+        self.period = active_period(settings.budget_mode, settings.budget_start_day)
+
+    def test_post_creates_variance_for_the_active_period(self) -> None:
+        url = reverse("budget:log_variance", args=[self.outgoing.id])
+        response = self.client.post(url, {"actual_amount": "1200"})
+        assert response.status_code == 200
+        variance = OutgoingVariance.objects.get(outgoing=self.outgoing, period_start=self.period.start)
+        assert variance.actual_amount == Decimal("1200")
+
+    def test_second_post_same_period_overwrites_instead_of_duplicating(self) -> None:
+        url = reverse("budget:log_variance", args=[self.outgoing.id])
+        self.client.post(url, {"actual_amount": "1200"})
+        self.client.post(url, {"actual_amount": "1300"})
+        assert OutgoingVariance.objects.filter(outgoing=self.outgoing).count() == 1
+        assert OutgoingVariance.objects.get(outgoing=self.outgoing).actual_amount == Decimal("1300")
+
+    def test_logged_variance_flows_into_adjusted_surplus(self) -> None:
+        url = reverse("budget:log_variance", args=[self.outgoing.id])
+        self.client.post(url, {"actual_amount": "1200"})
+        summary = budget_summary(Settings.BudgetMode.MONTHLY, self.period)
+        assert summary.variance_total == Decimal("200")
+
+
+class LogPotEntryViewTests(TestCase):
+    """POSTing to log_pot_entry is the only way to fill PotEntry from the browser."""
+
+    def setUp(self) -> None:
+        self.pot = Pot.objects.create(
+            name="Holiday",
+            target_amount=Decimal("2000"),
+            target_date=date(2030, 1, 1),
+            monthly_target=Decimal("100"),
+        )
+        settings = Settings.get()
+        self.period = active_period(settings.budget_mode, settings.budget_start_day)
+
+    def test_post_creates_pot_entry_for_the_active_period(self) -> None:
+        url = reverse("budget:log_pot_entry", args=[self.pot.id])
+        response = self.client.post(url, {"actual_amount": "150"})
+        assert response.status_code == 200
+        entry = PotEntry.objects.get(pot=self.pot, period_start=self.period.start)
+        assert entry.actual_amount == Decimal("150")
+
+    def test_logged_entry_flows_into_pot_progress(self) -> None:
+        url = reverse("budget:log_pot_entry", args=[self.pot.id])
+        self.client.post(url, {"actual_amount": "150"})
+        progress = pot_progress(self.pot, Settings.BudgetMode.MONTHLY, self.period)
+        assert progress.saved_to_date == Decimal("150")
+
+
+class OutgoingCreateViewTests(TestCase):
+    """Smoke test for the CRUD views — confirms the CBV + form wiring works end to end."""
+
+    def test_post_creates_outgoing_and_redirects_to_accounts(self) -> None:
+        account = Account.objects.create(name="Personal")
+        category = OutgoingCategory.objects.create(name="Bills")
+        url = reverse("budget:outgoing_add")
+        response = self.client.post(
+            url,
+            {
+                "name": "Internet",
+                "amount": "50",
+                "frequency": "monthly",
+                "category": category.id,
+                "account": account.id,
+            },
+        )
+        assert response.status_code == 302
+        assert Outgoing.objects.filter(name="Internet", account=account).exists()

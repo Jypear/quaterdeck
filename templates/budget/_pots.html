@@ -1,0 +1,56 @@
+{% if pot_progress %}
+<div class="row g-3">
+  {% for row in pot_progress %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="card-title mb-0">{{ row.pot.name }}</h5>
+          {% if row.status == "ahead" %}
+          <span class="badge bg-success">Ahead</span>
+          {% elif row.status == "behind" %}
+          <span class="badge bg-danger">Behind</span>
+          {% else %}
+          <span class="badge bg-primary">On track</span>
+          {% endif %}
+        </div>
+        <p class="text-muted small mb-3">
+          Target: {{ currency }} {{ row.pot.target_amount|floatformat:2 }} by {{ row.pot.target_date }}
+        </p>
+        <dl class="row mb-3 small">
+          <dt class="col-7">Saved to date</dt>
+          <dd class="col-5 text-end">{{ currency }} {{ row.saved_to_date|floatformat:2 }}</dd>
+          <dt class="col-7">Expected to date</dt>
+          <dd class="col-5 text-end">{{ currency }} {{ row.expected_to_date|floatformat:2 }}</dd>
+          <dt class="col-7">Monthly target</dt>
+          <dd class="col-5 text-end">{{ currency }} {{ row.pot.monthly_target|floatformat:2 }}</dd>
+        </dl>
+        {% if row.status == "behind" %}
+        <div class="alert alert-warning small mb-3" role="alert">
+          You're behind — contribute <strong>{{ currency }} {{ row.per_period_needed|floatformat:2 }}</strong> per
+          remaining period ({{ row.remaining_periods }} left) to still hit the target.
+        </div>
+        {% endif %}
+        <form class="d-flex align-items-center gap-2"
+              hx-post="{% url 'budget:log_pot_entry' row.pot.id %}"
+              hx-target="#pots-list" hx-swap="innerHTML">
+          {% csrf_token %}
+          <label class="text-muted small text-nowrap">Saved this period</label>
+          <input type="number" step="0.01" name="actual_amount" class="form-control form-control-sm"
+                 value="{{ row.pot.current_entry.actual_amount|default_if_none:'' }}" required>
+          <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Log</button>
+        </form>
+        {% if row.pot.linked_project %}
+        <p class="small text-muted mt-2 mb-0">Linked project: {{ row.pot.linked_project.name }}</p>
+        {% endif %}
+        {% if row.pot.linked_one_off %}
+        <p class="small text-muted mb-0">Linked to: {{ row.pot.linked_one_off.name }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No pots yet.</p>
+{% endif %}
