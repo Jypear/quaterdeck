@@ -1,0 +1,46 @@
+{% if open_tasks %}
+<ul class="list-group mb-4">
+  {% for task in open_tasks %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      <form class="d-inline" hx-post="{% url 'tasks:task_toggle_done' task.pk %}"
+            hx-target="#task-list" hx-swap="innerHTML">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1 me-2" title="Mark done">✓</button>
+      </form>
+      <span>{{ task.title }}</span>
+      {% if task.due_date %}<span class="text-muted small ms-2">due {{ task.due_date }}</span>{% endif %}
+      {% if task.linked_project %}
+      <span class="badge text-bg-light border ms-2">{{ task.linked_project.name }}</span>
+      {% endif %}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-secondary">{{ task.get_priority_display }}</span>
+      <a href="{% url 'tasks:task_edit' task.pk %}" class="link-secondary small">Edit</a>
+      <a href="{% url 'tasks:task_delete' task.pk %}" class="link-danger small">Delete</a>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">No open tasks.</p>
+{% endif %}
+
+{% if done_tasks %}
+<h2 class="h6 text-muted">Done</h2>
+<ul class="list-group">
+  {% for task in done_tasks %}
+  <li class="list-group-item d-flex justify-content-between align-items-center text-muted">
+    <div>
+      <form class="d-inline" hx-post="{% url 'tasks:task_toggle_done' task.pk %}"
+            hx-target="#task-list" hx-swap="innerHTML">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-1 me-2" title="Reopen">↩</button>
+      </form>
+      <span class="text-decoration-line-through">{{ task.title }}</span>
+    </div>
+    <a href="{% url 'tasks:task_delete' task.pk %}" class="link-danger small">Delete</a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

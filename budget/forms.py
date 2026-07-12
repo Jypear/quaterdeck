@@ -21,24 +21,10 @@ from budget.models import (
     PotEntry,
     Transfer,
 )
+from core.forms import BootstrapModelForm as _BootstrapModelForm
 
 if TYPE_CHECKING:
     from typing import Any
-
-
-class _BootstrapModelForm(forms.ModelForm):
-    """Adds `form-control`/`form-select`/`form-check-input` to every widget."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            widget = field.widget
-            if isinstance(widget, forms.CheckboxInput):
-                widget.attrs.setdefault("class", "form-check-input")
-            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
-                widget.attrs.setdefault("class", "form-select")
-            else:
-                widget.attrs.setdefault("class", "form-control")
 
 
 class AccountForm(_BootstrapModelForm):

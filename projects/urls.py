@@ -1,10 +1,13 @@
 from django.urls import path
 
-from projects.views import ProjectDetailView, ProjectListView
+from projects import views
 
 app_name = "projects"
 
 urlpatterns = [
-    path("", ProjectListView.as_view(), name="list"),
-    path("<int:pk>/", ProjectDetailView.as_view(), name="detail"),
+    path("", views.ProjectListView.as_view(), name="list"),
+    path("add/", views.ProjectCreateView.as_view(), name="project_add"),
+    path("<int:pk>/", views.ProjectDetailView.as_view(), name="detail"),
+    path("<int:pk>/edit/", views.ProjectUpdateView.as_view(), name="project_edit"),
+    path("<int:pk>/delete/", views.ProjectDeleteView.as_view(), name="project_delete"),
 ]

@@ -2,12 +2,19 @@
 {% block title %}Projects — Quaterdeck{% endblock %}
 {% block nav_projects %}active{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Projects</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Projects</h1>
+  <a href="{% url 'projects:project_add' %}" class="btn btn-sm btn-primary">+ Add project</a>
+</div>
 {% if projects %}
 <ul class="list-group">
   {% for project in projects %}
-  <li class="list-group-item">
+  <li class="list-group-item d-flex justify-content-between align-items-center">
     <a href="{% url 'projects:detail' project.pk %}">{{ project.name }}</a>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'projects:project_edit' project.pk %}" class="link-secondary small">Edit</a>
+      <a href="{% url 'projects:project_delete' project.pk %}" class="link-danger small">Delete</a>
+    </div>
   </li>
   {% endfor %}
 </ul>

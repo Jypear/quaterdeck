@@ -2,7 +2,38 @@
 {% block title %}{{ project.name }} — Quaterdeck{% endblock %}
 {% block nav_projects %}active{% endblock %}
 {% block content %}
-<h1 class="h3 mb-2">{{ project.name }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h3 mb-0">{{ project.name }}</h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+    <a href="{% url 'projects:project_delete' project.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+  </div>
+</div>
 {% if project.description %}<p>{{ project.description }}</p>{% endif %}
 {% if project.budget %}<p class="text-muted">Budget: {{ project.budget }}</p>{% endif %}
+
+<h2 class="h6 text-muted mt-4">Tasks</h2>
+{% if project.tasks.all %}
+<ul class="list-group mb-4">
+  {% for task in project.tasks.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>{{ task.title }}</span>
+    <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">No linked tasks.</p>
+{% endif %}
+
+<h2 class="h6 text-muted">Notes</h2>
+{% if project.notes.all %}
+<ul class="list-group">
+  {% for note in project.notes.all %}
+  <li class="list-group-item"><a href="{% url 'notes:detail' note.pk %}">{{ note.title }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">No linked notes.</p>
+{% endif %}
 {% endblock %}

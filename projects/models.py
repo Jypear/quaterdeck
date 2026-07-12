@@ -1,6 +1,7 @@
 """Projects domain model."""
 
 from django.db import models
+from django.urls import reverse
 
 
 class Project(models.Model):
@@ -15,3 +16,6 @@ class Project(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def get_absolute_url(self) -> str:
+        return reverse("projects:detail", args=[self.pk])
