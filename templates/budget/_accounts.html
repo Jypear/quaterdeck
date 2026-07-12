@@ -72,7 +72,44 @@
           {% endfor %}
         </ul>
         {% endif %}
-        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">+ Add outgoing</a>
+        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">+ Add outgoing</a>
+
+        <h6 class="small text-uppercase text-muted mb-2">Transfers</h6>
+        {% if row.account.transfers_out.all or row.account.transfers_in.all %}
+        <ul class="list-group list-group-flush small mb-2">
+          {% for transfer in row.account.transfers_out.all %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <span>To {{ transfer.to_account }} — {{ currency }} {{ transfer.amount|floatformat:2 }} / {{ transfer.get_frequency_display }}</span>
+            <span>
+              <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary">Edit</a>
+              <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1">Delete</a>
+            </span>
+          </li>
+          {% endfor %}
+          {% for transfer in row.account.transfers_in.all %}
+          <li class="list-group-item px-0 text-muted">
+            From {{ transfer.from_account }} — {{ currency }} {{ transfer.amount|floatformat:2 }} / {{ transfer.get_frequency_display }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <a href="{% url 'budget:transfer_add' %}" class="btn btn-sm btn-outline-secondary mb-3">+ Add transfer</a>
+
+        <h6 class="small text-uppercase text-muted mb-2">One-off outgoings</h6>
+        {% if row.account.one_off_outgoings.all %}
+        <ul class="list-group list-group-flush small mb-2">
+          {% for oneoff in row.account.one_off_outgoings.all %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+            <span>{{ oneoff.name }} — {{ currency }} {{ oneoff.amount|floatformat:2 }}, due {{ oneoff.due_date }}</span>
+            <span>
+              <a href="{% url 'budget:oneoff_edit' oneoff.id %}" class="link-secondary">Edit</a>
+              <a href="{% url 'budget:oneoff_delete' oneoff.id %}" class="link-danger ms-1">Delete</a>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">+ Add one-off</a>
       </div>
     </div>
   </div>

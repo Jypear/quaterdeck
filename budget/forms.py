@@ -10,7 +10,17 @@ from typing import TYPE_CHECKING, ClassVar
 
 from django import forms
 
-from budget.models import Account, IncomeStream, Outgoing, OutgoingVariance, PotEntry
+from budget.models import (
+    Account,
+    IncomeStream,
+    OneOffOutgoing,
+    Outgoing,
+    OutgoingCategory,
+    OutgoingVariance,
+    Pot,
+    PotEntry,
+    Transfer,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -47,6 +57,39 @@ class OutgoingForm(_BootstrapModelForm):
     class Meta:
         model = Outgoing
         fields: ClassVar[list[str]] = ["name", "amount", "frequency", "category", "account"]
+
+
+class TransferForm(_BootstrapModelForm):
+    class Meta:
+        model = Transfer
+        fields: ClassVar[list[str]] = ["name", "amount", "frequency", "from_account", "to_account"]
+
+
+class OneOffOutgoingForm(_BootstrapModelForm):
+    class Meta:
+        model = OneOffOutgoing
+        fields: ClassVar[list[str]] = ["name", "amount", "due_date", "account", "linked_pot"]
+        widgets: ClassVar[dict[str, Any]] = {"due_date": forms.DateInput(attrs={"type": "date"})}
+
+
+class OutgoingCategoryForm(_BootstrapModelForm):
+    class Meta:
+        model = OutgoingCategory
+        fields: ClassVar[list[str]] = ["name"]
+
+
+class PotForm(_BootstrapModelForm):
+    class Meta:
+        model = Pot
+        fields: ClassVar[list[str]] = [
+            "name",
+            "target_amount",
+            "target_date",
+            "monthly_target",
+            "linked_project",
+            "linked_one_off",
+        ]
+        widgets: ClassVar[dict[str, Any]] = {"target_date": forms.DateInput(attrs={"type": "date"})}
 
 
 class OutgoingVarianceForm(_BootstrapModelForm):

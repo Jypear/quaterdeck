@@ -6,13 +6,17 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-2">
           <h5 class="card-title mb-0">{{ row.pot.name }}</h5>
-          {% if row.status == "ahead" %}
-          <span class="badge bg-success">Ahead</span>
-          {% elif row.status == "behind" %}
-          <span class="badge bg-danger">Behind</span>
-          {% else %}
-          <span class="badge bg-primary">On track</span>
-          {% endif %}
+          <div class="d-flex align-items-center gap-2">
+            {% if row.status == "ahead" %}
+            <span class="badge bg-success">Ahead</span>
+            {% elif row.status == "behind" %}
+            <span class="badge bg-danger">Behind</span>
+            {% else %}
+            <span class="badge bg-primary">On track</span>
+            {% endif %}
+            <a href="{% url 'budget:pot_edit' row.pot.id %}" class="link-secondary small">Edit</a>
+            <a href="{% url 'budget:pot_delete' row.pot.id %}" class="link-danger small">Delete</a>
+          </div>
         </div>
         <p class="text-muted small mb-3">
           Target: {{ currency }} {{ row.pot.target_amount|floatformat:2 }} by {{ row.pot.target_date }}

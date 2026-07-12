@@ -10,8 +10,28 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
-from budget.forms import AccountForm, IncomeStreamForm, OutgoingForm, OutgoingVarianceForm, PotEntryForm
-from budget.models import Account, IncomeStream, Outgoing, OutgoingVariance, Pot, PotEntry
+from budget.forms import (
+    AccountForm,
+    IncomeStreamForm,
+    OneOffOutgoingForm,
+    OutgoingCategoryForm,
+    OutgoingForm,
+    OutgoingVarianceForm,
+    PotEntryForm,
+    PotForm,
+    TransferForm,
+)
+from budget.models import (
+    Account,
+    IncomeStream,
+    OneOffOutgoing,
+    Outgoing,
+    OutgoingCategory,
+    OutgoingVariance,
+    Pot,
+    PotEntry,
+    Transfer,
+)
 from budget.services import (
     account_summary,
     active_period,
@@ -136,6 +156,8 @@ class AccountListView(TemplateView):
         settings = Settings.get()
         mode = _requested_mode(self.request, settings)
         context.update(_accounts_context(mode, settings))
+        if not _is_partial_request(self.request):
+            context["categories"] = OutgoingCategory.objects.all()
         return context
 
 
@@ -165,12 +187,19 @@ class _BudgetFormMixin:
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.setdefault("title", self.title)
+        context.setdefault("cancel_url", self.success_url)
         return context
 
     def form_valid(self, form: Any) -> HttpResponse:
         response = super().form_valid(form)
         messages.success(self.request, self.success_message)
         return response
+
+
+class _PotFormMixin(_BudgetFormMixin):
+    """Same as `_BudgetFormMixin` but redirects to the pots page, not accounts."""
+
+    success_url = reverse_lazy("budget:pots")
 
 
 class _AccountScopedCreateMixin:
@@ -182,6 +211,18 @@ class _AccountScopedCreateMixin:
         if account_id and account_id.isdigit():
             initial["account"] = account_id
         return initial
+
+
+class _BudgetDeleteView(DeleteView):
+    """Shared confirm-delete template + cancel_url for delete views."""
+
+    template_name = "budget/_confirm_delete.html"
+    success_url = reverse_lazy("budget:accounts")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context.setdefault("cancel_url", self.success_url)
+        return context
 
 
 class AccountCreateView(_BudgetFormMixin, CreateView):
@@ -196,10 +237,8 @@ class AccountUpdateView(_BudgetFormMixin, UpdateView):
     title = "Edit account"
 
 
-class AccountDeleteView(DeleteView):
+class AccountDeleteView(_BudgetDeleteView):
     model = Account
-    template_name = "budget/_confirm_delete.html"
-    success_url = reverse_lazy("budget:accounts")
 
 
 class IncomeStreamCreateView(_AccountScopedCreateMixin, _BudgetFormMixin, CreateView):
@@ -214,10 +253,8 @@ class IncomeStreamUpdateView(_BudgetFormMixin, UpdateView):
     title = "Edit income"
 
 
-class IncomeStreamDeleteView(DeleteView):
+class IncomeStreamDeleteView(_BudgetDeleteView):
     model = IncomeStream
-    template_name = "budget/_confirm_delete.html"
-    success_url = reverse_lazy("budget:accounts")
 
 
 class OutgoingCreateView(_AccountScopedCreateMixin, _BudgetFormMixin, CreateView):
@@ -232,10 +269,73 @@ class OutgoingUpdateView(_BudgetFormMixin, UpdateView):
     title = "Edit outgoing"
 
 
-class OutgoingDeleteView(DeleteView):
+class OutgoingDeleteView(_BudgetDeleteView):
     model = Outgoing
-    template_name = "budget/_confirm_delete.html"
-    success_url = reverse_lazy("budget:accounts")
+
+
+class TransferCreateView(_BudgetFormMixin, CreateView):
+    model = Transfer
+    form_class = TransferForm
+    title = "Add transfer"
+
+
+class TransferUpdateView(_BudgetFormMixin, UpdateView):
+    model = Transfer
+    form_class = TransferForm
+    title = "Edit transfer"
+
+
+class TransferDeleteView(_BudgetDeleteView):
+    model = Transfer
+
+
+class OneOffOutgoingCreateView(_AccountScopedCreateMixin, _BudgetFormMixin, CreateView):
+    model = OneOffOutgoing
+    form_class = OneOffOutgoingForm
+    title = "Add one-off outgoing"
+
+
+class OneOffOutgoingUpdateView(_BudgetFormMixin, UpdateView):
+    model = OneOffOutgoing
+    form_class = OneOffOutgoingForm
+    title = "Edit one-off outgoing"
+
+
+class OneOffOutgoingDeleteView(_BudgetDeleteView):
+    model = OneOffOutgoing
+
+
+class OutgoingCategoryCreateView(_BudgetFormMixin, CreateView):
+    model = OutgoingCategory
+    form_class = OutgoingCategoryForm
+    title = "Add category"
+
+
+class OutgoingCategoryUpdateView(_BudgetFormMixin, UpdateView):
+    model = OutgoingCategory
+    form_class = OutgoingCategoryForm
+    title = "Edit category"
+
+
+class OutgoingCategoryDeleteView(_BudgetDeleteView):
+    model = OutgoingCategory
+
+
+class PotCreateView(_PotFormMixin, CreateView):
+    model = Pot
+    form_class = PotForm
+    title = "Add pot"
+
+
+class PotUpdateView(_PotFormMixin, UpdateView):
+    model = Pot
+    form_class = PotForm
+    title = "Edit pot"
+
+
+class PotDeleteView(_BudgetDeleteView):
+    model = Pot
+    success_url = reverse_lazy("budget:pots")
 
 
 # --- Feedback-loop logging: actual spend / actual saved ---------------------

@@ -8,6 +8,20 @@
 </div>
 {% include "budget/_subnav.html" %}
 
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <span class="small text-uppercase text-muted me-2">Categories</span>
+    {% for category in categories %}
+    <span class="badge text-bg-light border me-1">
+      {{ category.name }}
+      <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1">Edit</a>
+      <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1">Delete</a>
+    </span>
+    {% endfor %}
+  </div>
+  <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">+ Add category</a>
+</div>
+
 <form id="account-filters" class="row g-3 align-items-start mb-4"
       hx-get="{% url 'budget:accounts' %}"
       hx-target="#account-summaries"

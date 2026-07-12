@@ -20,6 +20,22 @@ urlpatterns = [
     path("outgoing/add/", views.OutgoingCreateView.as_view(), name="outgoing_add"),
     path("outgoing/<int:pk>/edit/", views.OutgoingUpdateView.as_view(), name="outgoing_edit"),
     path("outgoing/<int:pk>/delete/", views.OutgoingDeleteView.as_view(), name="outgoing_delete"),
+    # Transfer CRUD
+    path("transfer/add/", views.TransferCreateView.as_view(), name="transfer_add"),
+    path("transfer/<int:pk>/edit/", views.TransferUpdateView.as_view(), name="transfer_edit"),
+    path("transfer/<int:pk>/delete/", views.TransferDeleteView.as_view(), name="transfer_delete"),
+    # One-off outgoing CRUD
+    path("oneoff/add/", views.OneOffOutgoingCreateView.as_view(), name="oneoff_add"),
+    path("oneoff/<int:pk>/edit/", views.OneOffOutgoingUpdateView.as_view(), name="oneoff_edit"),
+    path("oneoff/<int:pk>/delete/", views.OneOffOutgoingDeleteView.as_view(), name="oneoff_delete"),
+    # Outgoing category CRUD
+    path("category/add/", views.OutgoingCategoryCreateView.as_view(), name="category_add"),
+    path("category/<int:pk>/edit/", views.OutgoingCategoryUpdateView.as_view(), name="category_edit"),
+    path("category/<int:pk>/delete/", views.OutgoingCategoryDeleteView.as_view(), name="category_delete"),
+    # Pot CRUD
+    path("pot/add/", views.PotCreateView.as_view(), name="pot_add"),
+    path("pot/<int:pk>/edit/", views.PotUpdateView.as_view(), name="pot_edit"),
+    path("pot/<int:pk>/delete/", views.PotDeleteView.as_view(), name="pot_delete"),
     # Per-period logging
     path("outgoing/<int:outgoing_id>/log-variance/", views.log_variance, name="log_variance"),
     path("pot/<int:pot_id>/log-entry/", views.log_pot_entry, name="log_pot_entry"),

@@ -283,7 +283,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 1. [x] Set up the Django project scaffold (uv + Ruff + Docker)
 2. [x] Implement data models and migrations
 3. [x] Define the DRF API contract (resources, endpoints, auth scheme)
-4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching. Full HTML CRUD for accounts/income/outgoings, plus inline per-period logging for outgoing variances and pot entries (`budget/forms.py`, `log_variance`, `log_pot_entry`) — closes the feedback loop the engine already computed (this pass)
+4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching. Full HTML CRUD for accounts/income/outgoings, plus inline per-period logging for outgoing variances and pot entries (`budget/forms.py`, `log_variance`, `log_pot_entry`) — closes the feedback loop the engine already computed. Full HTML CRUD added for Transfers, One-off Outgoings, Outgoing Categories, and Pot creation/edit/delete (this pass) — the budget feature is now usable end-to-end without touching Django admin
 5. [ ] Build pots, projects, tasks, calendar
    - [x] Pots — progress tracking, on-track/behind/ahead status, and per-period saved-amount logging
    - [x] Projects, Tasks — minimal read-only list/detail views (from scaffold); still no HTML create/edit forms
@@ -291,4 +291,4 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 6. [ ] Notes page — minimal read-only list/detail views exist (from scaffold); no AI enrichment wired, no create/edit forms
 7. [ ] AI provider abstraction layer (optional / last) — `ai/providers.py` implements Anthropic/OpenAI/Ollama, but the `ai` app isn't in `INSTALLED_APPS` and nothing calls it yet
 
-**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), and inbound/outbound webhooks. Transfers, one-off outgoings, outgoing categories, and Pot creation are still admin/API-only — only Account/IncomeStream/Outgoing CRUD and the two logging forms were built this pass.
+**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), and inbound/outbound webhooks.

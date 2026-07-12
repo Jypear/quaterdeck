@@ -17,6 +17,7 @@ from budget.models import (
     OutgoingVariance,
     Pot,
     PotEntry,
+    Transfer,
 )
 from budget.services import (
     Period,
@@ -284,3 +285,50 @@ class OutgoingCreateViewTests(TestCase):
         )
         assert response.status_code == 302
         assert Outgoing.objects.filter(name="Internet", account=account).exists()
+
+
+class NewCrudSmokeTests(TestCase):
+    """Smoke tests for the previously admin-only models' new HTML CRUD."""
+
+    def test_category_create(self) -> None:
+        response = self.client.post(reverse("budget:category_add"), {"name": "Subscriptions"})
+        assert response.status_code == 302
+        assert OutgoingCategory.objects.filter(name="Subscriptions").exists()
+
+    def test_transfer_create(self) -> None:
+        personal = Account.objects.create(name="Personal")
+        joint = Account.objects.create(name="Joint")
+        response = self.client.post(
+            reverse("budget:transfer_add"),
+            {
+                "name": "Joint contribution",
+                "amount": "200",
+                "frequency": "monthly",
+                "from_account": personal.id,
+                "to_account": joint.id,
+            },
+        )
+        assert response.status_code == 302
+        assert Transfer.objects.filter(name="Joint contribution", from_account=personal, to_account=joint).exists()
+
+    def test_oneoff_create(self) -> None:
+        account = Account.objects.create(name="Personal")
+        response = self.client.post(
+            reverse("budget:oneoff_add"),
+            {"name": "Car service", "amount": "300", "due_date": "2026-11-01", "account": account.id},
+        )
+        assert response.status_code == 302
+        assert OneOffOutgoing.objects.filter(name="Car service", account=account).exists()
+
+    def test_pot_create(self) -> None:
+        response = self.client.post(
+            reverse("budget:pot_add"),
+            {
+                "name": "Holiday 2026",
+                "target_amount": "2000",
+                "target_date": "2026-12-01",
+                "monthly_target": "100",
+            },
+        )
+        assert response.status_code == 302
+        assert Pot.objects.filter(name="Holiday 2026").exists()
