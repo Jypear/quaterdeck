@@ -86,7 +86,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 #### Outgoings
 - [x] Categorised recurring expenses per account (e.g. rent, subscriptions, groceries)
 - [x] Each outgoing: name, amount, category, account, frequency
-- [ ] **Actual vs. budgeted**: user can log the real amount spent against a recurring outgoing for the current period — model + calculation done (`OutgoingVariance`), but there's no HTML form yet to log it; API/admin only
+- [x] **Actual vs. budgeted**: user can log the real amount spent against a recurring outgoing for the current period — inline HTML form on the accounts page posts to `log_variance`, using `update_or_create` on the period so resubmitting corrects it instead of erroring
 - [x] Variance (actual − budgeted) flows back into the surplus calculation, affecting pot contributions for that period
 
 #### One-off Outgoings
@@ -105,7 +105,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 
 #### Pots
 - [x] Named pots with a target amount, target date, and a monthly contribution target
-- [ ] Each period the user confirms the actual amount saved into the pot (manual entry) — model supports it (`PotEntry`), no HTML form yet; API/admin only
+- [x] Each period the user confirms the actual amount saved into the pot (manual entry) — inline HTML form on the pots page posts to `log_pot_entry`, same overwrite-on-resubmit pattern as outgoing variances
 - [x] App compares actual vs. monthly target: on track / behind / ahead
 - [x] Shows how much more is needed per remaining period to hit the target by the deadline
 - [x] User can be prompted: "You're behind — adjust your monthly contribution to £X to still hit the target"
@@ -283,12 +283,12 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 1. [x] Set up the Django project scaffold (uv + Ruff + Docker)
 2. [x] Implement data models and migrations
 3. [x] Define the DRF API contract (resources, endpoints, auth scheme)
-4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching
+4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching. Full HTML CRUD for accounts/income/outgoings, plus inline per-period logging for outgoing variances and pot entries (`budget/forms.py`, `log_variance`, `log_pot_entry`) — closes the feedback loop the engine already computed (this pass)
 5. [ ] Build pots, projects, tasks, calendar
-   - [x] Pots — progress tracking and on-track/behind/ahead status (this pass)
+   - [x] Pots — progress tracking, on-track/behind/ahead status, and per-period saved-amount logging
    - [x] Projects, Tasks — minimal read-only list/detail views (from scaffold); still no HTML create/edit forms
    - [ ] Calendar — not started; no app, view, or route yet
 6. [ ] Notes page — minimal read-only list/detail views exist (from scaffold); no AI enrichment wired, no create/edit forms
 7. [ ] AI provider abstraction layer (optional / last) — `ai/providers.py` implements Anthropic/OpenAI/Ollama, but the `ai` app isn't in `INSTALLED_APPS` and nothing calls it yet
 
-**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), inbound/outbound webhooks, and HTML mutation forms for outgoing variances and pot entries (currently API/admin-only).
+**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), and inbound/outbound webhooks. Transfers, one-off outgoings, outgoing categories, and Pot creation are still admin/API-only — only Account/IncomeStream/Outgoing CRUD and the two logging forms were built this pass.
