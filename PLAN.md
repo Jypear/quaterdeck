@@ -136,16 +136,16 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - [x] AI interaction is on-demand only — never automatic
 
 ### API & Webhooks
-- [ ] RESTful API via DRF for all core resources
-- [ ] Inbound webhook endpoints for external events
-- [ ] Outbound webhook support for triggering external automations
+- [x] RESTful API via DRF for all core resources — 12 `ModelViewSet`s under `/api/` (`api/urls.py`), one per budget/notes/projects/tasks model, session-authenticated
+- [x] Inbound webhook endpoints for external events — `POST /webhooks/inbound/`, HMAC-signed against `Settings.webhook_inbound_secret`, routes on a `type` field (ships `create_task`)
+- [x] Outbound webhook support for triggering external automations — `WebhookEndpoint` subscriptions fire signed POSTs on `task`/`pot`/`note`/`oneoff` events (`webhooks/signals.py`, `webhooks/services.py`), delivery logged to `WebhookDelivery`
 
 ### Settings
 - [x] `REQUIRE_LOGIN` toggle for optional password protection
 - [x] Currency selection (instance-wide)
 - [x] Budget window: view mode (weekly / monthly / yearly) + period start date
 - [x] AI provider configuration (provider, API key, model)
-- [ ] Webhook signing secrets management
+- [x] Webhook signing secrets management — inbound secret shown + regenerable on the Settings page; per-endpoint outbound secrets managed on the Webhooks page
 
 ---
 
@@ -292,4 +292,6 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 7. [x] AI provider abstraction layer — `ai/providers.py` (Anthropic/OpenAI/Ollama) is now called from `notes/views.py::enrich_note`; `anthropic`/`openai` added as dependencies. `ai` app still isn't in `INSTALLED_APPS` — it has no models/migrations, so it doesn't need to be; imported as a plain module.
    - A user-facing Settings page now exists (`core:settings`) to configure `ai_provider` / `ai_api_key` / `ai_model` (previously admin-only)
 
-**Still missing:** Project budget view (linked pot progress vs. project cost), recurring income/outgoings/transfers on the calendar (no per-entry date field), and inbound/outbound webhooks.
+8. [x] Webhooks — new `webhooks` app: outbound `WebhookEndpoint` subscriptions (HMAC-signed delivery via `webhooks/services.py`, fired from `webhooks/signals.py` on task/pot/note/one-off changes) plus an inbound `POST /webhooks/inbound/` receiver authenticated by a Settings-stored HMAC secret. Both endpoint CRUD and the delivery log get HTML pages (`templates/webhooks/`); `WebhookEndpoint`/`WebhookDelivery` also registered on the DRF API.
+
+**Still missing:** Project budget view (linked pot progress vs. project cost), recurring income/outgoings/transfers on the calendar (no per-entry date field).

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Webhooks — Quaterdeck{% endblock %}
+{% block nav_webhooks %}active{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Webhooks</h1>
+  <div>
+    <a href="{% url 'webhooks:deliveries' %}" class="btn btn-outline-secondary btn-sm">Delivery log</a>
+    <a href="{% url 'webhooks:endpoint_add' %}" class="btn btn-primary btn-sm">Add endpoint</a>
+  </div>
+</div>
+<p class="text-muted">
+  Outbound endpoints receive a signed POST when subscribed events happen. Inbound automations can
+  POST to <code>/webhooks/inbound/</code>, signed with the inbound secret on the
+  <a href="{% url 'core:settings' %}">Settings page</a>.
+</p>
+{% if endpoints %}
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th>URL</th>
+        <th>Events</th>
+        <th>Secret</th>
+        <th>Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for endpoint in endpoints %}
+      <tr>
+        <td>{{ endpoint.url }}</td>
+        <td>{{ endpoint.event_types|join:", "|default:"All events" }}</td>
+        <td><code>{{ endpoint.secret }}</code></td>
+        <td>{% if endpoint.is_active %}Yes{% else %}No{% endif %}</td>
+        <td class="text-end">
+          <a href="{% url 'webhooks:endpoint_edit' endpoint.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+          <a href="{% url 'webhooks:endpoint_delete' endpoint.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">No webhook endpoints yet.</p>
+{% endif %}
+{% endblock %}

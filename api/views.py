@@ -1,5 +1,7 @@
 """DRF ModelViewSets for all Quaterdeck resources."""
 
+from typing import ClassVar
+
 from rest_framework.viewsets import ModelViewSet
 
 from budget.models import (
@@ -30,6 +32,8 @@ from projects.models import Project
 from projects.serializers import ProjectSerializer
 from tasks.models import Task
 from tasks.serializers import TaskSerializer
+from webhooks.models import WebhookDelivery, WebhookEndpoint
+from webhooks.serializers import WebhookDeliverySerializer, WebhookEndpointSerializer
 
 
 class AccountViewSet(ModelViewSet):
@@ -90,3 +94,14 @@ class TaskViewSet(ModelViewSet):
 class NoteViewSet(ModelViewSet):
     queryset = Note.objects.select_related("linked_project")
     serializer_class = NoteSerializer
+
+
+class WebhookEndpointViewSet(ModelViewSet):
+    queryset = WebhookEndpoint.objects.all()
+    serializer_class = WebhookEndpointSerializer
+
+
+class WebhookDeliveryViewSet(ModelViewSet):
+    http_method_names: ClassVar[list[str]] = ["get", "head", "options"]  # read-only — a log, not editable
+    queryset = WebhookDelivery.objects.select_related("endpoint")
+    serializer_class = WebhookDeliverySerializer

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Webhook deliveries — Quaterdeck{% endblock %}
+{% block nav_webhooks %}active{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Webhook deliveries</h1>
+  <a href="{% url 'webhooks:list' %}" class="btn btn-outline-secondary btn-sm">Back to endpoints</a>
+</div>
+{% if deliveries %}
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Event</th>
+        <th>Endpoint</th>
+        <th>Status</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for delivery in deliveries %}
+      <tr>
+        <td>{{ delivery.created_at|date:"d M Y H:i" }}</td>
+        <td>{{ delivery.event_type }}</td>
+        <td>{{ delivery.endpoint.url }}</td>
+        <td>
+          {% if delivery.success %}
+          <span class="badge text-bg-success">{{ delivery.status_code|default:"OK" }}</span>
+          {% else %}
+          <span class="badge text-bg-danger">{{ delivery.status_code|default:"Failed" }}</span>
+          {% endif %}
+        </td>
+        <td class="text-muted small">{{ delivery.error }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if is_paginated %}
+<nav>
+  <ul class="pagination">
+    {% if page_obj.has_previous %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% else %}
+<p class="text-muted">No deliveries yet.</p>
+{% endif %}
+{% endblock %}

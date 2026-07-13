@@ -19,4 +19,23 @@
   {% endfor %}
   <button type="submit" class="btn btn-primary">Save</button>
 </form>
+
+<hr class="my-4">
+
+<h2 class="h5">Webhooks</h2>
+<p class="text-muted">
+  Outbound endpoints and delivery history are managed on the
+  <a href="{% url 'webhooks:list' %}">Webhooks page</a>.
+</p>
+<div class="col-12 col-md-6">
+  <label class="form-label">Inbound signing secret</label>
+  <input type="text" class="form-control" value="{{ form.instance.webhook_inbound_secret }}" readonly>
+  <div class="form-text">
+    External services must sign requests to <code>/webhooks/inbound/</code> with this secret.
+  </div>
+  <form method="post" action="{% url 'core:regenerate_webhook_secret' %}" class="mt-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Regenerate secret</button>
+  </form>
+</div>
 {% endblock %}

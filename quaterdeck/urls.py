@@ -19,6 +19,7 @@ urlpatterns = [
     path("projects/", include("projects.urls")),
     path("tasks/", include("tasks.urls")),
     path("notes/", include("notes.urls")),
+    path("webhooks/", include("webhooks.urls")),
     # API
     path("api/", include("api.urls")),
 ]

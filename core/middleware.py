@@ -17,6 +17,7 @@ _PUBLIC_PREFIXES = (
     settings.LOGIN_URL,
     "/admin/",
     "/static/",
+    "/webhooks/inbound/",  # authenticated by HMAC signature instead of a session
 )
 
 

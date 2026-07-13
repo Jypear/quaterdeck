@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "projects",
     "tasks",
     "notes",
+    "webhooks",
 ]
 
 MIDDLEWARE = [

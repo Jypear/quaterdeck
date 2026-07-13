@@ -15,6 +15,8 @@ from api.views import (
     ProjectViewSet,
     TaskViewSet,
     TransferViewSet,
+    WebhookDeliveryViewSet,
+    WebhookEndpointViewSet,
 )
 
 router = DefaultRouter()
@@ -30,5 +32,7 @@ router.register("pot-entries", PotEntryViewSet, basename="pot-entry")
 router.register("projects", ProjectViewSet, basename="project")
 router.register("tasks", TaskViewSet, basename="task")
 router.register("notes", NoteViewSet, basename="note")
+router.register("webhook-endpoints", WebhookEndpointViewSet, basename="webhook-endpoint")
+router.register("webhook-deliveries", WebhookDeliveryViewSet, basename="webhook-delivery")
 
 urlpatterns = router.urls

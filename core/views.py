@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import calendar as calendar_module
+import secrets
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
+from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
 
 from budget.services import active_period
@@ -17,7 +20,7 @@ from core.forms import SettingsForm
 from core.models import Settings
 
 if TYPE_CHECKING:
-    from django.http import HttpResponse
+    from django.http import HttpRequest, HttpResponse
 
 
 class DashboardView(TemplateView):
@@ -38,6 +41,16 @@ class SettingsUpdateView(UpdateView):
         response = super().form_valid(form)
         messages.success(self.request, "Settings saved.")
         return response
+
+
+@require_POST
+def regenerate_webhook_secret(request: HttpRequest) -> HttpResponse:
+    """Replace the inbound webhook HMAC secret with a freshly generated one."""
+    settings = Settings.get()
+    settings.webhook_inbound_secret = secrets.token_hex(32)
+    settings.save(update_fields=["webhook_inbound_secret"])
+    messages.success(request, "Webhook secret regenerated. Update any senders with the new value.")
+    return redirect("core:settings")
 
 
 def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:

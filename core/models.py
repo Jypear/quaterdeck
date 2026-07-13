@@ -1,5 +1,7 @@
 """Core models — singleton Settings for the Quaterdeck instance."""
 
+import secrets
+
 from django.db import models
 
 from core.fields import EncryptedCharField
@@ -40,6 +42,13 @@ class Settings(models.Model):
     ai_api_key = EncryptedCharField(blank=True, default="")
     ai_model = models.CharField(max_length=100, blank=True, default="")
 
+    # Webhooks
+    webhook_inbound_secret = EncryptedCharField(
+        blank=True,
+        default="",
+        help_text="HMAC secret external services must sign inbound webhook requests with.",
+    )
+
     class Meta:
         verbose_name = "Settings"
         verbose_name_plural = "Settings"
@@ -49,6 +58,13 @@ class Settings(models.Model):
 
     @classmethod
     def get(cls) -> "Settings":
-        """Return the singleton Settings row, creating it if absent."""
+        """Return the singleton Settings row, creating it if absent.
+
+        Auto-generates the inbound webhook signing secret on first access so
+        there's always a usable secret without a separate setup step.
+        """
         obj, _ = cls.objects.get_or_create(pk=1)
+        if not obj.webhook_inbound_secret:
+            obj.webhook_inbound_secret = secrets.token_hex(32)
+            obj.save(update_fields=["webhook_inbound_secret"])
         return obj
