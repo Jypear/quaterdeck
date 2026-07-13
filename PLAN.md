@@ -93,7 +93,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - [x] Future-dated single payments (e.g. a large bill due in November)
 - [x] Visible only in the budget period they fall in
 - [x] Can be flagged to create or top up a linked pot — allowing the user to save toward it monthly ahead of time
-- [ ] Pot-linked one-offs show a "covered / uncovered" status based on pot balance vs. payment amount — not built yet
+- [x] Pot-linked one-offs show a "covered / uncovered" status based on pot balance vs. payment amount — `_accounts_context` attaches `.pot_saved`/`.pot_covered` per one-off (`budget/views.py`), badge rendered on the accounts page (`templates/budget/_accounts.html`)
 
 #### Budget Summary
 - [x] Total income vs. total outgoings for the selected period (across all accounts)
@@ -109,7 +109,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - [x] App compares actual vs. monthly target: on track / behind / ahead
 - [x] Shows how much more is needed per remaining period to hit the target by the deadline
 - [x] User can be prompted: "You're behind — adjust your monthly contribution to £X to still hit the target"
-- [ ] User confirms whether to accept the adjusted contribution or leave it as-is — still deferred, see below
+- [x] User confirms whether to accept the adjusted contribution or leave it as-is — "Set monthly target to £X" button inside the behind-nudge posts to `accept_pot_contribution` (`budget/views.py`), which recomputes `per_period_needed` server-side and writes it to `Pot.monthly_target`; leaving it as-is needs no action
 - [x] App shows unallocated surplus as guidance — never forces allocation
 - [x] Spend variances in a period reduce the available surplus to contribute
 - [x] Pots can be linked to a one-off outgoing or a Project
@@ -161,7 +161,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 
 ## Deferred / Future Decisions
 
-- **Pot adjustment UX**: Passive suggestion displayed inline on the pot card — user can tap to accept the recalculated monthly contribution or ignore it. Revisit when building the pots UI.
+- **Pot adjustment UX**: Resolved — passive suggestion displayed inline on the pot card, with a one-click "Set monthly target to £X" action to accept it (`accept_pot_contribution` in `budget/views.py`); ignoring it needs no action.
 
 ---
 
@@ -285,7 +285,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 3. [x] Define the DRF API contract (resources, endpoints, auth scheme)
 4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching. Full HTML CRUD for accounts/income/outgoings, plus inline per-period logging for outgoing variances and pot entries (`budget/forms.py`, `log_variance`, `log_pot_entry`) — closes the feedback loop the engine already computed. Full HTML CRUD added for Transfers, One-off Outgoings, Outgoing Categories, and Pot creation/edit/delete (this pass) — the budget feature is now usable end-to-end without touching Django admin
 5. [x] Build pots, projects, tasks, calendar
-   - [x] Pots — progress tracking, on-track/behind/ahead status, and per-period saved-amount logging
+   - [x] Pots — progress tracking, on-track/behind/ahead status, per-period saved-amount logging, one-click acceptance of the suggested contribution when behind, and a covered/uncovered badge on pot-linked one-off outgoings
    - [x] Projects, Tasks — full HTML CRUD (create/edit/delete), matching the budget app's pattern
    - [x] Calendar — month grid aggregating task due dates, one-off due dates, pot target dates, and budget period markers (`core/views.py::CalendarView`)
 6. [x] Notes page — full HTML CRUD, plus on-demand AI enrichment: an "Enrich" button sends the note to the configured provider and returns clickable suggested actions (create a linked task, link to a project)
@@ -296,4 +296,6 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 9. [x] Project budget view — project detail page now shows total saved (across linked pots) vs. `project.budget` as a progress bar, plus a per-pot status list, reusing the existing `pot_progress` engine. Inline "Add pot to this project" link pre-selects the project and returns to the project page on save.
 10. [x] Deployment — `docker compose up --build` now boots a working, self-hosted instance end-to-end: `gunicorn`/`whitenoise` added as deps, `Dockerfile` installs from the frozen `uv.lock`, runs `collectstatic` at build time (build-only placeholder secret) and `migrate` on container start, `.dockerignore` keeps `.env` out of the image, and the stale `static_files` compose volume (which masked freshly-built static assets on every rebuild) was removed. Verified with a real build: fresh Postgres gets migrated, `/` returns 200, and `/admin/` renders with hashed, long-cache static assets under `DEBUG=False`.
 
-**Still missing:** Recurring income/outgoings/transfers on the calendar (no per-entry date field — deliberately deferred, see `core/views.py::CalendarView`). Pot-linked one-off covered/uncovered status, and the pot "accept suggested contribution" action — both scoped for a future stage, not deployment.
+11. [x] Pot-linked one-off covered/uncovered status, and the pot "accept suggested contribution" action — `_accounts_context` now attaches `.pot_saved`/`.pot_covered` to each pot-linked `OneOffOutgoing` (badge on the accounts page); the pots page's "behind" nudge gained a one-click "Set monthly target to £X" button posting to `accept_pot_contribution`, which recomputes the suggestion server-side rather than trusting a posted amount (`budget/views.py`, `budget/urls.py`, `templates/budget/_accounts.html`, `templates/budget/_pots.html`).
+
+**Still missing:** Recurring income/outgoings/transfers on the calendar (no per-entry date field — deliberately deferred, see `core/views.py::CalendarView`).

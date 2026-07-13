@@ -33,6 +33,13 @@
         <div class="alert alert-warning small mb-3" role="alert">
           You're behind — contribute <strong>{{ currency }} {{ row.per_period_needed|floatformat:2 }}</strong> per
           remaining period ({{ row.remaining_periods }} left) to still hit the target.
+          <form hx-post="{% url 'budget:accept_pot_contribution' row.pot.id %}"
+                hx-target="#pots-list" hx-swap="innerHTML" class="mt-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-warning">
+              Set monthly target to {{ currency }} {{ row.per_period_needed|floatformat:2 }}
+            </button>
+          </form>
         </div>
         {% endif %}
         <form class="d-flex align-items-center gap-2"

@@ -39,4 +39,5 @@ urlpatterns = [
     # Per-period logging
     path("outgoing/<int:outgoing_id>/log-variance/", views.log_variance, name="log_variance"),
     path("pot/<int:pot_id>/log-entry/", views.log_pot_entry, name="log_pot_entry"),
+    path("pot/<int:pot_id>/accept-contribution/", views.accept_pot_contribution, name="accept_pot_contribution"),
 ]

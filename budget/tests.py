@@ -27,6 +27,7 @@ from budget.services import (
     normalise,
     periods_between,
     pot_progress,
+    to_display,
 )
 from budget.views import _requested_mode
 from core.models import Settings
@@ -264,6 +265,65 @@ class LogPotEntryViewTests(TestCase):
         self.client.post(url, {"actual_amount": "150"})
         progress = pot_progress(self.pot, Settings.BudgetMode.MONTHLY, self.period)
         assert progress.saved_to_date == Decimal("150")
+
+
+class OneOffPotCoverageTests(TestCase):
+    """Pot-linked one-offs get a computed `.pot_covered` / `.pot_saved` via _accounts_context."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.pot = Pot.objects.create(
+            name="Car fund", target_amount=Decimal("1000"), target_date=date(2027, 1, 1), monthly_target=Decimal("50")
+        )
+
+    def _oneoff(self) -> OneOffOutgoing:
+        response = self.client.get(reverse("budget:accounts"))
+        assert response.status_code == 200
+        summary = next(s for s in response.context["account_summaries"] if s.account.id == self.account.id)
+        return next(iter(summary.account.one_off_outgoings.all()))
+
+    def test_covered_when_pot_balance_meets_amount(self) -> None:
+        PotEntry.objects.create(pot=self.pot, period_start=date(2026, 7, 1), actual_amount=Decimal("300"))
+        OneOffOutgoing.objects.create(
+            name="Service", amount=Decimal("250"), due_date=date(2026, 9, 1), account=self.account, linked_pot=self.pot
+        )
+        oneoff = self._oneoff()
+        assert oneoff.pot_saved == Decimal("300")
+        assert oneoff.pot_covered is True
+
+    def test_uncovered_when_pot_balance_below_amount(self) -> None:
+        PotEntry.objects.create(pot=self.pot, period_start=date(2026, 7, 1), actual_amount=Decimal("100"))
+        OneOffOutgoing.objects.create(
+            name="Service", amount=Decimal("250"), due_date=date(2026, 9, 1), account=self.account, linked_pot=self.pot
+        )
+        oneoff = self._oneoff()
+        assert oneoff.pot_saved == Decimal("100")
+        assert oneoff.pot_covered is False
+
+    def test_unlinked_oneoff_has_no_coverage_attributes(self) -> None:
+        OneOffOutgoing.objects.create(
+            name="Service", amount=Decimal("250"), due_date=date(2026, 9, 1), account=self.account
+        )
+        oneoff = self._oneoff()
+        assert not hasattr(oneoff, "pot_covered")
+
+
+class AcceptPotContributionViewTests(TestCase):
+    def setUp(self) -> None:
+        self.pot = Pot.objects.create(
+            name="Holiday", target_amount=Decimal("1200"), target_date=date(2027, 1, 1), monthly_target=Decimal("100")
+        )
+        PotEntry.objects.create(pot=self.pot, period_start=date(2026, 6, 1), actual_amount=Decimal("50"))
+        settings = Settings.get()
+        self.period = active_period(settings.budget_mode, settings.budget_start_day)
+
+    def test_accept_sets_monthly_target_to_suggested_value(self) -> None:
+        expected = to_display(pot_progress(self.pot, Settings.BudgetMode.MONTHLY, self.period).per_period_needed)
+        url = reverse("budget:accept_pot_contribution", args=[self.pot.id])
+        response = self.client.post(url)
+        assert response.status_code == 200
+        self.pot.refresh_from_db()
+        assert self.pot.monthly_target == expected
 
 
 class OutgoingCreateViewTests(TestCase):

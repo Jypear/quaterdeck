@@ -100,7 +100,16 @@
         <ul class="list-group list-group-flush small mb-2">
           {% for oneoff in row.account.one_off_outgoings.all %}
           <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <span>{{ oneoff.name }} — {{ currency }} {{ oneoff.amount|floatformat:2 }}, due {{ oneoff.due_date }}</span>
+            <span>
+              {{ oneoff.name }} — {{ currency }} {{ oneoff.amount|floatformat:2 }}, due {{ oneoff.due_date }}
+              {% if oneoff.linked_pot_id %}
+                {% if oneoff.pot_covered %}
+                <span class="badge bg-success">Covered</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">Uncovered ({{ currency }} {{ oneoff.pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
+                {% endif %}
+              {% endif %}
+            </span>
             <span>
               <a href="{% url 'budget:oneoff_edit' oneoff.id %}" class="link-secondary">Edit</a>
               <a href="{% url 'budget:oneoff_delete' oneoff.id %}" class="link-danger ms-1">Delete</a>
