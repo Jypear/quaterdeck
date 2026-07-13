@@ -151,11 +151,11 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 
 ## Deployment
 
-- Docker image for the application server
-- Docker Compose for local and self-hosted deployment (app + PostgreSQL + optional reverse proxy)
-- Environment-based configuration (`.env` file)
-- Migrations and setup via Django management commands
-- Bootstrap 5 served locally (no CDN dependency)
+- [x] Docker image for the application server — `Dockerfile` builds via `uv sync --frozen`, runs `collectstatic` at build time (with a build-only placeholder `SECRET_KEY`, decoupled from runtime secrets), serves via `gunicorn`
+- [x] Docker Compose for local and self-hosted deployment (app + PostgreSQL) — single-container scope, no reverse proxy; static assets served by the app itself via `whitenoise` rather than a separate proxy service
+- [x] Environment-based configuration (`.env` file) — `.env.example` documents required vars incl. how to generate `SECRET_KEY`; `.env` excluded from the image via `.dockerignore` so secrets never get baked into a layer
+- [x] Migrations and setup via Django management commands — container `CMD` runs `manage.py migrate --noinput` before starting gunicorn, so a fresh Postgres volume gets its schema on first boot
+- [x] Bootstrap 5 served locally (no CDN dependency) — vendored under `static/vendor/`, served in production via `whitenoise` with `CompressedManifestStaticFilesStorage` (hashed, long-cache); falls back to plain `StaticFilesStorage` when `DEBUG=True` so local `runserver`/`manage.py test` don't require a `collectstatic` run first
 
 ---
 
@@ -294,5 +294,6 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 
 8. [x] Webhooks — new `webhooks` app: outbound `WebhookEndpoint` subscriptions (HMAC-signed delivery via `webhooks/services.py`, fired from `webhooks/signals.py` on task/pot/note/one-off changes) plus an inbound `POST /webhooks/inbound/` receiver authenticated by a Settings-stored HMAC secret. Both endpoint CRUD and the delivery log get HTML pages (`templates/webhooks/`); `WebhookEndpoint`/`WebhookDelivery` also registered on the DRF API.
 9. [x] Project budget view — project detail page now shows total saved (across linked pots) vs. `project.budget` as a progress bar, plus a per-pot status list, reusing the existing `pot_progress` engine. Inline "Add pot to this project" link pre-selects the project and returns to the project page on save.
+10. [x] Deployment — `docker compose up --build` now boots a working, self-hosted instance end-to-end: `gunicorn`/`whitenoise` added as deps, `Dockerfile` installs from the frozen `uv.lock`, runs `collectstatic` at build time (build-only placeholder secret) and `migrate` on container start, `.dockerignore` keeps `.env` out of the image, and the stale `static_files` compose volume (which masked freshly-built static assets on every rebuild) was removed. Verified with a real build: fresh Postgres gets migrated, `/` returns 200, and `/admin/` renders with hashed, long-cache static assets under `DEBUG=False`.
 
-**Still missing:** Recurring income/outgoings/transfers on the calendar (no per-entry date field — deliberately deferred, see `core/views.py::CalendarView`).
+**Still missing:** Recurring income/outgoings/transfers on the calendar (no per-entry date field — deliberately deferred, see `core/views.py::CalendarView`). Pot-linked one-off covered/uncovered status, and the pot "accept suggested contribution" action — both scoped for a future stage, not deployment.
