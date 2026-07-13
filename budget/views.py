@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
@@ -197,9 +198,28 @@ class _BudgetFormMixin:
 
 
 class _PotFormMixin(_BudgetFormMixin):
-    """Same as `_BudgetFormMixin` but redirects to the pots page, not accounts."""
+    """Same as `_BudgetFormMixin` but redirects to the pots page, not accounts.
+
+    Honors `?next=` (e.g. a project's detail page) so pots created/edited
+    from that context return there instead of always landing on /pots/.
+    """
 
     success_url = reverse_lazy("budget:pots")
+
+    def get_success_url(self) -> str:
+        next_url = self.request.GET.get("next")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
+        ):
+            return next_url
+        return str(self.success_url)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        next_url = self.request.GET.get("next")
+        if next_url:
+            context["cancel_url"] = next_url
+        return context
 
 
 class _AccountScopedCreateMixin:
@@ -325,6 +345,15 @@ class PotCreateView(_PotFormMixin, CreateView):
     model = Pot
     form_class = PotForm
     title = "Add pot"
+
+    def get_initial(self) -> dict[str, Any]:
+        """Pre-selects `linked_project` from `?linked_project=<id>` on the
+        "Add pot to this project" link on a project's detail page."""
+        initial = super().get_initial()
+        project_id = self.request.GET.get("linked_project")
+        if project_id and project_id.isdigit():
+            initial["linked_project"] = project_id
+        return initial
 
 
 class PotUpdateView(_PotFormMixin, UpdateView):

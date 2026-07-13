@@ -6,12 +6,15 @@ matching the budget app's pattern.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from budget.services import active_period, pot_progress
+from core.models import Settings
 from projects.forms import ProjectForm
 from projects.models import Project
 
@@ -29,7 +32,23 @@ class ProjectDetailView(DetailView):
     model = Project
     template_name = "projects/detail.html"
     context_object_name = "project"
-    queryset = Project.objects.prefetch_related("tasks", "notes")
+    queryset = Project.objects.prefetch_related("tasks", "notes", "pots__entries", "pots__linked_one_off")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+
+        pot_rows = [pot_progress(pot, settings.budget_mode, period) for pot in self.object.pots.all()]
+        total_saved = sum((row.saved_to_date for row in pot_rows), Decimal("0"))
+        budget = self.object.budget
+        budget_pct = int(total_saved / budget * 100) if budget else None
+
+        context["pot_rows"] = pot_rows
+        context["total_saved"] = total_saved
+        context["budget_pct"] = budget_pct
+        context["currency"] = settings.currency
+        return context
 
 
 class _ProjectFormMixin:

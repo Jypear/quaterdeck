@@ -128,7 +128,7 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 ### Projects
 - [x] Create and manage projects
 - [x] A project is a container: links tasks, notes, pots, and calendar events
-- [ ] Project budget view: shows linked pot(s), total allocated, and progress toward project cost — not built yet
+- [x] Project budget view: project detail page shows a progress bar for total saved (across linked pots) vs. `project.budget`, plus each linked pot's status — reuses `budget.services.pot_progress`, no schema change (`projects/views.py::ProjectDetailView`, `templates/projects/detail.html`). An "Add pot to this project" link pre-selects the project on the pot form and round-trips back via `?next=` (`budget/views.py::PotCreateView`, `_PotFormMixin`)
 
 ### Notes
 - [x] Free-form note taking per project or standalone
@@ -293,5 +293,6 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
    - A user-facing Settings page now exists (`core:settings`) to configure `ai_provider` / `ai_api_key` / `ai_model` (previously admin-only)
 
 8. [x] Webhooks — new `webhooks` app: outbound `WebhookEndpoint` subscriptions (HMAC-signed delivery via `webhooks/services.py`, fired from `webhooks/signals.py` on task/pot/note/one-off changes) plus an inbound `POST /webhooks/inbound/` receiver authenticated by a Settings-stored HMAC secret. Both endpoint CRUD and the delivery log get HTML pages (`templates/webhooks/`); `WebhookEndpoint`/`WebhookDelivery` also registered on the DRF API.
+9. [x] Project budget view — project detail page now shows total saved (across linked pots) vs. `project.budget` as a progress bar, plus a per-pot status list, reusing the existing `pot_progress` engine. Inline "Add pot to this project" link pre-selects the project and returns to the project page on save.
 
-**Still missing:** Project budget view (linked pot progress vs. project cost), recurring income/outgoings/transfers on the calendar (no per-entry date field).
+**Still missing:** Recurring income/outgoings/transfers on the calendar (no per-entry date field — deliberately deferred, see `core/views.py::CalendarView`).
