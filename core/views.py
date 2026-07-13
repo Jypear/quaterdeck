@@ -5,18 +5,39 @@ from __future__ import annotations
 import calendar as calendar_module
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from django.urls import reverse
-from django.views.generic import TemplateView
+from django.contrib import messages
+from django.urls import reverse, reverse_lazy
+from django.views.generic import TemplateView, UpdateView
 
 from budget.services import active_period
 from core.events import CalEvent, month_events
+from core.forms import SettingsForm
 from core.models import Settings
+
+if TYPE_CHECKING:
+    from django.http import HttpResponse
 
 
 class DashboardView(TemplateView):
     template_name = "core/dashboard.html"
+
+
+class SettingsUpdateView(UpdateView):
+    """Edits the singleton Settings row (currency, budget window, AI provider)."""
+
+    form_class = SettingsForm
+    template_name = "core/settings.html"
+    success_url = reverse_lazy("core:settings")
+
+    def get_object(self, queryset: Any = None) -> Settings:  # noqa: ARG002
+        return Settings.get()
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        response = super().form_valid(form)
+        messages.success(self.request, "Settings saved.")
+        return response
 
 
 def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:

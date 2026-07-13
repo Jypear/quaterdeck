@@ -1,0 +1,32 @@
+{% if unconfigured %}
+<p class="text-muted">No AI provider configured. <a href="{% url 'core:settings' %}">Set one up in Settings</a>.</p>
+{% elif actions %}
+<ul class="list-group">
+  {% for action in actions %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    {% if action.type == "create_task" %}
+    <span>Create task: <strong>{{ action.title }}</strong></span>
+    <form method="post" action="{% url 'notes:note_apply_action' note.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="type" value="create_task">
+      <input type="hidden" name="title" value="{{ action.title }}">
+      <input type="hidden" name="priority" value="{{ action.priority }}">
+      <input type="hidden" name="due_date" value="{{ action.due_date|default:"" }}">
+      <input type="hidden" name="budget_amount" value="{{ action.budget_amount|default:"" }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </form>
+    {% elif action.type == "link_project" %}
+    <span>Link to project #{{ action.project_id }}</span>
+    <form method="post" action="{% url 'notes:note_apply_action' note.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="type" value="link_project">
+      <input type="hidden" name="project_id" value="{{ action.project_id }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted">No suggestions.</p>
+{% endif %}

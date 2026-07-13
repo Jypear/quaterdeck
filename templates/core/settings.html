@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Settings — Quaterdeck{% endblock %}
+{% block nav_settings %}active{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Settings</h1>
+<form method="post" class="col-12 col-md-6">
+  {% csrf_token %}
+  {% for field in form %}
+  <div class="mb-3">
+    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+    {{ field }}
+    {% if field.help_text %}
+    <div class="form-text">{{ field.help_text }}</div>
+    {% endif %}
+    {% if field.errors %}
+    <div class="text-danger small">{{ field.errors|join:", " }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+{% endblock %}

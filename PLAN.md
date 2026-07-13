@@ -115,25 +115,25 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - [x] Pots can be linked to a one-off outgoing or a Project
 
 ### Tasks
-- [ ] To-do list: title, due date, priority, status
-- [ ] Tasks linkable to projects and calendar events
-- [ ] Large upcoming payments can be added as tasks with a budget amount, visible on calendar
+- [x] To-do list: title, due date, priority, status
+- [x] Tasks linkable to projects and calendar events
+- [x] Large upcoming payments can be added as tasks with a budget amount, visible on calendar
 
 ### Calendar
-- [ ] Calendar view surfacing tasks and scheduled events
-- [ ] Recurring outgoings and income dates visible
-- [ ] One-off outgoing due dates shown
-- [ ] Pot target dates shown
+- [x] Calendar view surfacing tasks and scheduled events
+- [ ] Recurring outgoings and income dates visible — deferred, no per-entry date field (only `frequency`) to plot individually; budget period-start is shown as a stand-in marker
+- [x] One-off outgoing due dates shown
+- [x] Pot target dates shown
 
 ### Projects
-- [ ] Create and manage projects
-- [ ] A project is a container: links tasks, notes, pots, and calendar events
-- [ ] Project budget view: shows linked pot(s), total allocated, and progress toward project cost
+- [x] Create and manage projects
+- [x] A project is a container: links tasks, notes, pots, and calendar events
+- [ ] Project budget view: shows linked pot(s), total allocated, and progress toward project cost — not built yet
 
 ### Notes
-- [ ] Free-form note taking per project or standalone
-- [ ] Optional AI enrichment: when AI is configured, the notes page interprets typed notes and suggests actions (link to a task, update a budget item, add to a project)
-- [ ] AI interaction is on-demand only — never automatic
+- [x] Free-form note taking per project or standalone
+- [x] Optional AI enrichment: when AI is configured, the notes page interprets typed notes and suggests actions (create a linked task, link to a project)
+- [x] AI interaction is on-demand only — never automatic
 
 ### API & Webhooks
 - [ ] RESTful API via DRF for all core resources
@@ -141,10 +141,10 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 - [ ] Outbound webhook support for triggering external automations
 
 ### Settings
-- [ ] `REQUIRE_LOGIN` toggle for optional password protection
-- [ ] Currency selection (instance-wide)
-- [ ] Budget window: view mode (weekly / monthly / yearly) + period start date
-- [ ] AI provider configuration (provider, API key, model)
+- [x] `REQUIRE_LOGIN` toggle for optional password protection
+- [x] Currency selection (instance-wide)
+- [x] Budget window: view mode (weekly / monthly / yearly) + period start date
+- [x] AI provider configuration (provider, API key, model)
 - [ ] Webhook signing secrets management
 
 ---
@@ -284,11 +284,12 @@ The core of the app. Budgeting operates in one of three view modes: **weekly**, 
 2. [x] Implement data models and migrations
 3. [x] Define the DRF API contract (resources, endpoints, auth scheme)
 4. [x] Build core budget views (account summary, income/outgoings, surplus) — budget engine (`budget/services.py`) plus overview/accounts/pots pages, with HTMX-driven view-mode and account switching. Full HTML CRUD for accounts/income/outgoings, plus inline per-period logging for outgoing variances and pot entries (`budget/forms.py`, `log_variance`, `log_pot_entry`) — closes the feedback loop the engine already computed. Full HTML CRUD added for Transfers, One-off Outgoings, Outgoing Categories, and Pot creation/edit/delete (this pass) — the budget feature is now usable end-to-end without touching Django admin
-5. [ ] Build pots, projects, tasks, calendar
+5. [x] Build pots, projects, tasks, calendar
    - [x] Pots — progress tracking, on-track/behind/ahead status, and per-period saved-amount logging
-   - [x] Projects, Tasks — minimal read-only list/detail views (from scaffold); still no HTML create/edit forms
-   - [ ] Calendar — not started; no app, view, or route yet
-6. [ ] Notes page — minimal read-only list/detail views exist (from scaffold); no AI enrichment wired, no create/edit forms
-7. [ ] AI provider abstraction layer (optional / last) — `ai/providers.py` implements Anthropic/OpenAI/Ollama, but the `ai` app isn't in `INSTALLED_APPS` and nothing calls it yet
+   - [x] Projects, Tasks — full HTML CRUD (create/edit/delete), matching the budget app's pattern
+   - [x] Calendar — month grid aggregating task due dates, one-off due dates, pot target dates, and budget period markers (`core/views.py::CalendarView`)
+6. [x] Notes page — full HTML CRUD, plus on-demand AI enrichment: an "Enrich" button sends the note to the configured provider and returns clickable suggested actions (create a linked task, link to a project)
+7. [x] AI provider abstraction layer — `ai/providers.py` (Anthropic/OpenAI/Ollama) is now called from `notes/views.py::enrich_note`; `anthropic`/`openai` added as dependencies. `ai` app still isn't in `INSTALLED_APPS` — it has no models/migrations, so it doesn't need to be; imported as a plain module.
+   - A user-facing Settings page now exists (`core:settings`) to configure `ai_provider` / `ai_api_key` / `ai_model` (previously admin-only)
 
-**Also missing, called out in Features above but not yet in this list:** a user-facing Settings page (model + admin only right now), and inbound/outbound webhooks.
+**Still missing:** Project budget view (linked pot progress vs. project cost), recurring income/outgoings/transfers on the calendar (no per-entry date field), and inbound/outbound webhooks.

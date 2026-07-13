@@ -39,6 +39,9 @@
         </li>
       </ul>
       <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link {% block nav_settings %}{% endblock %}" href="{% url 'core:settings' %}">Settings</a>
+        </li>
         {% if user.is_authenticated %}
         <li class="nav-item">
           <form method="post" action="{% url 'logout' %}">

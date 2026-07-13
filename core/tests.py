@@ -44,6 +44,50 @@ class MonthEventsTests(TestCase):
         assert date(2026, 8, 1) not in events
 
 
+class SettingsViewTests(TestCase):
+    def test_save_with_blank_key_field_keeps_existing_key(self) -> None:
+        settings = Settings.get()
+        settings.ai_provider = Settings.AiProvider.ANTHROPIC
+        settings.ai_api_key = "sk-secret"
+        settings.ai_model = "claude-sonnet-5"
+        settings.save()
+
+        self.client.post(
+            reverse("core:settings"),
+            {
+                "currency": "GBP",
+                "budget_mode": Settings.BudgetMode.MONTHLY,
+                "budget_start_day": 1,
+                "ai_provider": Settings.AiProvider.ANTHROPIC,
+                "ai_api_key": "",  # left blank — should not wipe the stored key
+                "ai_model": "claude-sonnet-5",
+            },
+        )
+
+        settings.refresh_from_db()
+        assert settings.ai_api_key == "sk-secret"
+
+    def test_save_with_new_key_replaces_existing_key(self) -> None:
+        settings = Settings.get()
+        settings.ai_api_key = "sk-old"
+        settings.save()
+
+        self.client.post(
+            reverse("core:settings"),
+            {
+                "currency": "GBP",
+                "budget_mode": Settings.BudgetMode.MONTHLY,
+                "budget_start_day": 1,
+                "ai_provider": Settings.AiProvider.NONE,
+                "ai_api_key": "sk-new",
+                "ai_model": "",
+            },
+        )
+
+        settings.refresh_from_db()
+        assert settings.ai_api_key == "sk-new"
+
+
 class CalendarViewTests(TestCase):
     def test_budget_period_start_gets_a_marker(self) -> None:
         settings = Settings.get()
