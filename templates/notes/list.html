@@ -3,7 +3,7 @@
 {% block nav_notes %}active{% endblock %}
 {% block content %}
 {% url 'notes:note_add' as note_add_url %}
-{% include "_page_header.html" with title="Notes" action_url=note_add_url action_label="New note" %}
+{% include "_page_header.html" with title="Notes" action_url=note_add_url action_label="+ Add note" %}
 {% if notes %}
 <ul class="list-group">
   {% for note in notes %}

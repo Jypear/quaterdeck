@@ -48,7 +48,7 @@
 {% else %}
 <p class="text-muted small">No pots linked.</p>
 {% endif %}
-<a href="{% url 'budget:pot_add' %}?linked_project={{ project.pk }}&amp;next={{ request.path|urlencode }}" class="btn btn-sm btn-outline-primary mb-4">Add pot to this project</a>
+<a href="{% url 'budget:pot_add' %}?linked_project={{ project.pk }}&amp;next={{ request.path|urlencode }}" class="btn btn-sm btn-outline-primary mb-4">+ Add pot to this project</a>
 
 <h2 class="h6 text-muted">Tasks</h2>
 {% if project.tasks.all %}

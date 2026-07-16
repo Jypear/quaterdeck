@@ -142,7 +142,6 @@ h1, h2, h3, h4, h5, h6,
 .form-control:focus,
 .form-select:focus {
   border-color: var(--qd-brass);
-  box-shadow: 0 0 0 0.25rem rgba(var(--qd-brass-rgb), 0.25);
 }
 
 /* The navbar is the ship's command deck — always navy with brass accents,
@@ -213,12 +212,6 @@ h1, h2, h3, h4, h5, h6,
   transition: stroke-dashoffset 0.6s ease;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .helm-gauge-fill {
-    transition: none;
-  }
-}
-
 .helm-gauge-center {
   position: absolute;
   inset: 0;
@@ -245,4 +238,40 @@ h1, h2, h3, h4, h5, h6,
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-top: 0.25rem;
+}
+
+/* Visible keyboard focus, site-wide. Many Bootstrap components (.nav-link,
+   .btn, .dropdown-item, .page-link...) set their own hardcoded blue
+   focus-visible box-shadow at higher specificity than a plain element
+   selector can reach and it isn't variable-driven, so this needs
+   !important to actually win everywhere rather than just on plain tags. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--qd-brass) !important;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+/* HTMX request indicator — dims whatever triggered the request (button,
+   form) for the duration of the swap. Zero markup changes needed across the
+   many hx-post/hx-get forms in the app. */
+.htmx-request {
+  opacity: 0.6;
+  cursor: progress;
+  transition: opacity 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
