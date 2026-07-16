@@ -105,7 +105,8 @@ def suggest_note(request: HttpRequest, pk: int) -> HttpResponse:
         return render(request, "notes/_suggestions.html", {"note": note, "unconfigured": True})
 
     prompt = build_prompt(note, Project.objects.all(), Pot.objects.all(), OneOffOutgoing.objects.all())
-    actions = parse_actions(provider.complete(prompt))
+    reply = provider.complete(prompt, system=Settings.get().ai_system_prompt)
+    actions = parse_actions(reply)
     return render(request, "notes/_suggestions.html", {"note": note, "actions": actions})
 
 
@@ -164,7 +165,9 @@ def enrich_note(request: HttpRequest, pk: int) -> HttpResponse:  # noqa: ARG001
         chunks = unconfigured()
     else:
         settings = Settings.get()
-        chunks = provider.stream(build_enrich_prompt(note), web_search=settings.ai_web_search)
+        chunks = provider.stream(
+            build_enrich_prompt(note), web_search=settings.ai_web_search, system=settings.ai_system_prompt
+        )
 
     response = StreamingHttpResponse(chunks, content_type="text/plain; charset=utf-8")
     response["Cache-Control"] = "no-cache"

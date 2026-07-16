@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from ai.providers import BaseAIProvider
 from budget.models import Account, OneOffOutgoing, Pot
+from core.models import Settings
 from notes.ai import parse_actions
 from notes.markdown import render_markdown
 from notes.models import Note
@@ -60,11 +61,14 @@ class _FakeProvider(BaseAIProvider):
     def __init__(self, reply: str = "", stream_chunks: list[str] | None = None) -> None:
         self._reply = reply
         self._stream_chunks = stream_chunks or []
+        self.last_system: str | None = None
 
-    def complete(self, prompt: str) -> str:  # noqa: ARG002
+    def complete(self, prompt: str, *, system: str = "") -> str:  # noqa: ARG002
+        self.last_system = system
         return self._reply
 
-    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:  # noqa: ARG002
+    def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:  # noqa: ARG002
+        self.last_system = system
         yield from self._stream_chunks
 
 
@@ -90,6 +94,14 @@ class SuggestNoteTests(TestCase):
         with patch("notes.views.get_provider", return_value=_FakeProvider(reply=reply)):
             response = self.client.post(reverse("notes:note_suggest", args=[self.note.pk]))
         assert b"Book flights" in response.content
+
+    def test_passes_settings_system_prompt_to_provider(self) -> None:
+        Settings.get()
+        Settings.objects.update(ai_system_prompt="User is based in the UK; use GBP and UK retailers.")
+        fake = _FakeProvider(reply='{"actions": []}')
+        with patch("notes.views.get_provider", return_value=fake):
+            self.client.post(reverse("notes:note_suggest", args=[self.note.pk]))
+        assert fake.last_system == "User is based in the UK; use GBP and UK retailers."
 
     def test_apply_create_task_action_creates_linked_task(self) -> None:
         self.note.linked_project = self.project
@@ -153,6 +165,15 @@ class EnrichNoteTests(TestCase):
             response = self.client.post(reverse("notes:note_enrich", args=[self.note.pk]))
         content = b"".join(response.streaming_content)
         assert content == b"Booked flights for \xc2\xa3500."
+
+    def test_passes_settings_system_prompt_to_provider(self) -> None:
+        Settings.get()
+        Settings.objects.update(ai_system_prompt="User is based in the UK; use GBP and UK retailers.")
+        fake = _FakeProvider(stream_chunks=["ok"])
+        with patch("notes.views.get_provider", return_value=fake):
+            response = self.client.post(reverse("notes:note_enrich", args=[self.note.pk]))
+            b"".join(response.streaming_content)  # force generator to run
+        assert fake.last_system == "User is based in the UK; use GBP and UK retailers."
 
     def test_enrich_apply_replaces_note_body(self) -> None:
         self.client.post(

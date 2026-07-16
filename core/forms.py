@@ -50,6 +50,7 @@ class SettingsForm(BootstrapModelForm):
             "ai_api_key",
             "ai_model",
             "ai_web_search",
+            "ai_system_prompt",
         ]
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "ai_api_key": forms.PasswordInput(render_value=False),

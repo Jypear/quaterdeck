@@ -19,22 +19,26 @@ class BaseAIProvider(ABC):
     """Minimal interface all providers must implement."""
 
     @abstractmethod
-    def complete(self, prompt: str) -> str:
-        """Send *prompt* and return the model's text response."""
+    def complete(self, prompt: str, *, system: str = "") -> str:
+        """Send *prompt* and return the model's text response.
 
-    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:  # noqa: ARG002
+        `system` is the user's configured Settings.ai_system_prompt (e.g.
+        location/currency context) sent as a system-level instruction.
+        """
+
+    def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:  # noqa: ARG002
         """Yield the response incrementally. `web_search` is a hint providers may ignore.
 
         Default fallback for providers without real token streaming: yields the
         whole `complete()` result as one chunk.
         """
-        yield self.complete(prompt)
+        yield self.complete(prompt, system=system)
 
 
 class NullProvider(BaseAIProvider):
     """Returned when no AI provider is configured."""
 
-    def complete(self, prompt: str) -> str:  # noqa: ARG002
+    def complete(self, prompt: str, *, system: str = "") -> str:  # noqa: ARG002
         return ""
 
 
@@ -43,18 +47,19 @@ class AnthropicProvider(BaseAIProvider):
         self._api_key = api_key
         self._model = model
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, *, system: str = "") -> str:
         import anthropic  # type: ignore[import-untyped]
 
         client = anthropic.Anthropic(api_key=self._api_key)
         message = client.messages.create(
             model=self._model,
             max_tokens=1024,
+            system=system or anthropic.NOT_GIVEN,
             messages=[{"role": "user", "content": prompt}],
         )
         return message.content[0].text
 
-    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:
+    def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:
         import anthropic  # type: ignore[import-untyped]
 
         client = anthropic.Anthropic(api_key=self._api_key)
@@ -62,6 +67,7 @@ class AnthropicProvider(BaseAIProvider):
         with client.messages.stream(
             model=self._model,
             max_tokens=4096,
+            system=system or anthropic.NOT_GIVEN,
             messages=[{"role": "user", "content": prompt}],
             tools=tools,
         ) as s:
@@ -73,22 +79,20 @@ class OpenAIProvider(BaseAIProvider):
         self._api_key = api_key
         self._model = model
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, *, system: str = "") -> str:
         import openai  # type: ignore[import-untyped]
 
         client = openai.OpenAI(api_key=self._api_key)
-        response = client.chat.completions.create(
-            model=self._model,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+        response = client.chat.completions.create(model=self._model, messages=messages)
         return response.choices[0].message.content or ""
 
-    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:
+    def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:
         import openai  # type: ignore[import-untyped]
 
         client = openai.OpenAI(api_key=self._api_key)
         tools = [{"type": "web_search"}] if web_search else []
-        with client.responses.stream(model=self._model, input=prompt, tools=tools) as s:
+        with client.responses.stream(model=self._model, input=prompt, instructions=system or None, tools=tools) as s:
             for event in s:
                 if event.type == "response.output_text.delta":
                     yield event.delta
@@ -99,11 +103,11 @@ class OllamaProvider(BaseAIProvider):
         self._model = model
         self._base_url = base_url
 
-    def complete(self, prompt: str) -> str:
+    def complete(self, prompt: str, *, system: str = "") -> str:
         import json
         import urllib.request
 
-        payload = json.dumps({"model": self._model, "prompt": prompt, "stream": False}).encode()
+        payload = json.dumps({"model": self._model, "prompt": prompt, "system": system, "stream": False}).encode()
         req = urllib.request.Request(
             f"{self._base_url}/api/generate",
             data=payload,
@@ -113,12 +117,12 @@ class OllamaProvider(BaseAIProvider):
             data = json.loads(resp.read())
         return data.get("response", "")
 
-    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:  # noqa: ARG002
+    def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:  # noqa: ARG002
         import json
         import urllib.request
 
         # ponytail: web_search is unsupported by Ollama and silently ignored here.
-        payload = json.dumps({"model": self._model, "prompt": prompt, "stream": True}).encode()
+        payload = json.dumps({"model": self._model, "prompt": prompt, "system": system, "stream": True}).encode()
         req = urllib.request.Request(
             f"{self._base_url}/api/generate",
             data=payload,

@@ -45,6 +45,12 @@ class Settings(models.Model):
         default=False,
         help_text="Let the AI search the web when enriching notes. Anthropic and OpenAI only — ignored by Ollama.",
     )
+    ai_system_prompt = models.TextField(
+        blank=True,
+        default="",
+        help_text="Sent as a system prompt on every AI request — e.g. your location, currency, or units, "
+        "so suggestions and web-searched prices make sense for you.",
+    )
 
     # Webhooks
     webhook_inbound_secret = EncryptedCharField(
