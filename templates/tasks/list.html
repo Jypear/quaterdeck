@@ -2,10 +2,8 @@
 {% block title %}Tasks — Quaterdeck{% endblock %}
 {% block nav_tasks %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Tasks</h1>
-  <a href="{% url 'tasks:task_add' %}" class="btn btn-sm btn-primary">+ Add task</a>
-</div>
+{% url 'tasks:task_add' as task_add_url %}
+{% include "_page_header.html" with title="Tasks" action_url=task_add_url action_label="+ Add task" %}
 <div id="task-list">
   {% include "tasks/_list.html" %}
 </div>

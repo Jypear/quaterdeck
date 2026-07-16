@@ -1,13 +1,17 @@
-{# Standard page header: title (+ optional subtitle) with a single primary
-   action on the right. Usage:
-   {% include "_page_header.html" with title="Tasks" subtitle="Track what needs doing" action_url=... action_label="+ Add task" %}
-   `subtitle`, `action_url` and `action_label` are all optional. #}
+{% comment %}
+Standard page header: title (+ optional subtitle) with a single primary
+action on the right. Usage:
+{% include "_page_header.html" with title="Tasks" subtitle="Track what needs doing" action_url=... action_label="+ Add task" %}
+`subtitle`, `action_url`, `action_label` and `action_class` are all optional.
+`action_class` defaults to "btn-primary" — pass "btn-outline-secondary" for a
+secondary/navigational action (e.g. "Back to endpoints") rather than a CTA.
+{% endcomment %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h1 class="h3 mb-0">{{ title }}</h1>
     {% if subtitle %}<p class="text-body-secondary small mb-0 mt-1">{{ subtitle }}</p>{% endif %}
   </div>
   {% if action_url %}
-  <a href="{{ action_url }}" class="btn btn-sm btn-primary">{{ action_label }}</a>
+  <a href="{{ action_url }}" class="btn btn-sm {{ action_class|default:"btn-primary" }}">{{ action_label }}</a>
   {% endif %}
 </div>

@@ -2,7 +2,7 @@
 {% block title %}Budget — Quaterdeck{% endblock %}
 {% block nav_budget %}active{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Budget</h1>
+{% include "_page_header.html" with title="Budget" subtitle="Income, outgoings, and this period's surplus." %}
 {% include "budget/_subnav.html" %}
 
 <form id="budget-filters" class="row g-3 align-items-start mb-4"

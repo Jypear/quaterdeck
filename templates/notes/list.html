@@ -2,10 +2,8 @@
 {% block title %}Notes — Quaterdeck{% endblock %}
 {% block nav_notes %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Notes</h1>
-  <a href="{% url 'notes:note_add' %}" class="btn btn-primary btn-sm">New note</a>
-</div>
+{% url 'notes:note_add' as note_add_url %}
+{% include "_page_header.html" with title="Notes" action_url=note_add_url action_label="New note" %}
 {% if notes %}
 <ul class="list-group">
   {% for note in notes %}
@@ -16,6 +14,6 @@
   {% endfor %}
 </ul>
 {% else %}
-<p class="text-muted">No notes yet.</p>
+<p class="text-muted">No notes yet — capture your first thought.</p>
 {% endif %}
 {% endblock %}

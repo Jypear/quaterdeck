@@ -2,10 +2,8 @@
 {% block title %}Webhook deliveries — Quaterdeck{% endblock %}
 {% block nav_webhooks %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Webhook deliveries</h1>
-  <a href="{% url 'webhooks:list' %}" class="btn btn-outline-secondary btn-sm">Back to endpoints</a>
-</div>
+{% url 'webhooks:list' as webhooks_list_url %}
+{% include "_page_header.html" with title="Webhook deliveries" action_url=webhooks_list_url action_label="Back to endpoints" action_class="btn-outline-secondary" %}
 {% if deliveries %}
 <div class="table-responsive">
   <table class="table align-middle">
@@ -51,6 +49,6 @@
 </nav>
 {% endif %}
 {% else %}
-<p class="text-muted">No deliveries yet.</p>
+<p class="text-muted">No deliveries yet — they'll show up here once an endpoint fires.</p>
 {% endif %}
 {% endblock %}

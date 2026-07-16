@@ -2,10 +2,8 @@
 {% block title %}Pots — Quaterdeck{% endblock %}
 {% block nav_budget %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Pots</h1>
-  <a href="{% url 'budget:pot_add' %}" class="btn btn-sm btn-primary">+ Add pot</a>
-</div>
+{% url 'budget:pot_add' as pot_add_url %}
+{% include "_page_header.html" with title="Pots" action_url=pot_add_url action_label="+ Add pot" %}
 {% include "budget/_subnav.html" %}
 
 <div id="pots-list">

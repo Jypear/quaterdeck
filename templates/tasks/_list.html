@@ -11,7 +11,7 @@
       <span>{{ task.title }}</span>
       {% if task.due_date %}<span class="text-muted small ms-2">due {{ task.due_date }}</span>{% endif %}
       {% if task.linked_project %}
-      <span class="badge text-bg-light border ms-2">{{ task.linked_project.name }}</span>
+      <span class="badge border text-body-secondary ms-2">{{ task.linked_project.name }}</span>
       {% endif %}
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -23,7 +23,7 @@
   {% endfor %}
 </ul>
 {% else %}
-<p class="text-muted">No open tasks.</p>
+<p class="text-muted">Nothing open — add a task to get started.</p>
 {% endif %}
 
 {% if done_tasks %}

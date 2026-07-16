@@ -2,17 +2,15 @@
 {% block title %}Accounts — Quaterdeck{% endblock %}
 {% block nav_budget %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Accounts</h1>
-  <a href="{% url 'budget:account_add' %}" class="btn btn-sm btn-primary">+ Add account</a>
-</div>
+{% url 'budget:account_add' as account_add_url %}
+{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="+ Add account" %}
 {% include "budget/_subnav.html" %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <span class="small text-uppercase text-muted me-2">Categories</span>
     {% for category in categories %}
-    <span class="badge text-bg-light border me-1">
+    <span class="badge border text-body-secondary me-1">
       {{ category.name }}
       <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1">Edit</a>
       <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1">Delete</a>

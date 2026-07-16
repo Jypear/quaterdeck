@@ -2,7 +2,7 @@
 {% block title %}Settings — Quaterdeck{% endblock %}
 {% block nav_settings %}active{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Settings</h1>
+{% include "_page_header.html" with title="Settings" subtitle="Currency, budget window, access, and AI provider." %}
 <form method="post" class="col-12 col-md-6">
   {% csrf_token %}
   {% for field in form %}

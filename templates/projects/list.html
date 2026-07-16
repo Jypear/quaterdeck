@@ -2,10 +2,8 @@
 {% block title %}Projects — Quaterdeck{% endblock %}
 {% block nav_projects %}active{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">Projects</h1>
-  <a href="{% url 'projects:project_add' %}" class="btn btn-sm btn-primary">+ Add project</a>
-</div>
+{% url 'projects:project_add' as project_add_url %}
+{% include "_page_header.html" with title="Projects" action_url=project_add_url action_label="+ Add project" %}
 {% if projects %}
 <ul class="list-group">
   {% for project in projects %}
@@ -19,6 +17,6 @@
   {% endfor %}
 </ul>
 {% else %}
-<p class="text-muted">No projects yet.</p>
+<p class="text-muted">No projects yet — group related work together.</p>
 {% endif %}
 {% endblock %}
