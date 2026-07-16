@@ -78,6 +78,8 @@
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="{% url 'core:settings' %}">General</a></li>
             <li><a class="dropdown-item" href="{% url 'webhooks:list' %}">Webhooks</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin panel</a></li>
           </ul>
         </li>
         {% if user.is_authenticated %}

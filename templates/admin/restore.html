@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<p>Upload a backup JSON file previously downloaded from this admin. Restoring loads all
+records from the file into the database — existing records with matching IDs are overwritten.</p>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="backup_file" accept="application/json" required>
+    <input type="submit" value="Restore" class="default">
+</form>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="module" style="margin-bottom: 20px;">
+    <h2>{% translate 'Backup & restore' %}</h2>
+    <div style="padding: 10px;">
+        <a href="{% url 'admin:backup' %}" class="button">Download backup</a>
+        <a href="{% url 'admin:restore' %}" class="button">Restore backup</a>
+    </div>
+</div>
+{{ block.super }}
+{% endblock %}
