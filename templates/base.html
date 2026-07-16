@@ -1,10 +1,23 @@
 {% load static %}
 <!doctype html>
-<html lang="en" data-bs-theme="auto">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Quaterdeck{% endblock %}</title>
+
+  {# Resolve the theme before first paint so there's no flash of the wrong one. #}
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem("qd-theme") || "auto";
+        var resolved = pref === "auto"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : pref;
+        document.documentElement.setAttribute("data-bs-theme", resolved);
+      } catch (e) {}
+    })();
+  </script>
 
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'img/favicon-32.png' %}" sizes="32x32">
@@ -18,7 +31,7 @@
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark navbar-quaterdeck">
   <div class="container-fluid">
     <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'core:dashboard' %}">
       <svg viewBox="0 0 64 64" fill="none" width="28" height="28" role="img" aria-hidden="true">
@@ -35,6 +48,9 @@
     <div class="collapse navbar-collapse" id="navMain">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
+          <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'core:dashboard' %}">Dashboard</a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {% block nav_budget %}{% endblock %}" href="{% url 'budget:overview' %}">Budget</a>
         </li>
         <li class="nav-item">
@@ -50,12 +66,19 @@
           <a class="nav-link {% block nav_notes %}{% endblock %}" href="{% url 'notes:list' %}">Notes</a>
         </li>
       </ul>
-      <ul class="navbar-nav">
+      <ul class="navbar-nav align-items-lg-center">
         <li class="nav-item">
-          <a class="nav-link {% block nav_webhooks %}{% endblock %}" href="{% url 'webhooks:list' %}">Webhooks</a>
+          <button type="button" class="btn btn-link nav-link px-2" id="theme-toggle">
+            <svg id="theme-toggle-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"></svg>
+          </button>
         </li>
-        <li class="nav-item">
-          <a class="nav-link {% block nav_settings %}{% endblock %}" href="{% url 'core:settings' %}">Settings</a>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_settings %}{% endblock %}{% block nav_webhooks %}{% endblock %}"
+             href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Settings</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'core:settings' %}">General</a></li>
+            <li><a class="dropdown-item" href="{% url 'webhooks:list' %}">Webhooks</a></li>
+          </ul>
         </li>
         {% if user.is_authenticated %}
         <li class="nav-item">
@@ -86,6 +109,52 @@
 <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
 <script src="{% static 'vendor/alpinejs/alpine.min.js' %}" defer></script>
+<script>
+  (function () {
+    var STORAGE_KEY = "qd-theme";
+    var ORDER = ["light", "dark", "auto"];
+    var ICONS = {
+      light: '<circle cx="9" cy="9" r="3.5" fill="currentColor"/><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><line x1="9" y1="1" x2="9" y2="3"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="1" y1="9" x2="3" y2="9"/><line x1="15" y1="9" x2="17" y2="9"/><line x1="3.5" y1="3.5" x2="4.9" y2="4.9"/><line x1="13.1" y1="13.1" x2="14.5" y2="14.5"/><line x1="3.5" y1="14.5" x2="4.9" y2="13.1"/><line x1="13.1" y1="4.9" x2="14.5" y2="3.5"/></g>',
+      dark: '<path fill="currentColor" d="M15.5 10.5A6.5 6.5 0 0 1 7.5 2.5a6.5 6.5 0 1 0 8 8Z"/>',
+      auto: '<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><path fill="currentColor" d="M9 2a7 7 0 0 0 0 14Z"/>'
+    };
+    var LABELS = {
+      light: "Theme: Light — click for Dark",
+      dark: "Theme: Dark — click for Auto (system)",
+      auto: "Theme: Auto (system) — click for Light"
+    };
+    var media = window.matchMedia("(prefers-color-scheme: dark)");
+    var button = document.getElementById("theme-toggle");
+    var icon = document.getElementById("theme-toggle-icon");
+
+    function currentPref() {
+      return localStorage.getItem(STORAGE_KEY) || "auto";
+    }
+
+    function resolve(pref) {
+      return pref === "auto" ? (media.matches ? "dark" : "light") : pref;
+    }
+
+    function apply(pref) {
+      document.documentElement.setAttribute("data-bs-theme", resolve(pref));
+      icon.innerHTML = ICONS[pref];
+      button.title = LABELS[pref];
+      button.setAttribute("aria-label", LABELS[pref]);
+    }
+
+    button.addEventListener("click", function () {
+      var next = ORDER[(ORDER.indexOf(currentPref()) + 1) % ORDER.length];
+      localStorage.setItem(STORAGE_KEY, next);
+      apply(next);
+    });
+
+    media.addEventListener("change", function () {
+      if (currentPref() === "auto") apply("auto");
+    });
+
+    apply(currentPref());
+  })();
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

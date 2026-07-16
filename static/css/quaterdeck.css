@@ -145,6 +145,17 @@ h1, h2, h3, h4, h5, h6,
   box-shadow: 0 0 0 0.25rem rgba(var(--qd-brass-rgb), 0.25);
 }
 
+/* The navbar is the ship's command deck — always navy with brass accents,
+   independent of the light/dark toggle below it. */
+.navbar-quaterdeck {
+  background-color: var(--qd-navy);
+  border-bottom: 2px solid var(--qd-brass);
+}
+
+.navbar-quaterdeck .nav-link.active {
+  color: var(--qd-brass) !important;
+}
+
 /* Verdigris marks the app's other recurring meaning — savings/positive
    progress — kept separate from the brass action colour above. */
 .text-verdigris {
