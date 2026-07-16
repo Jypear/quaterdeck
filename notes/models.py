@@ -14,6 +14,20 @@ class Note(models.Model):
         on_delete=models.SET_NULL,
         related_name="notes",
     )
+    linked_pot = models.ForeignKey(
+        "budget.Pot",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="notes",
+    )
+    linked_one_off = models.ForeignKey(
+        "budget.OneOffOutgoing",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="notes",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

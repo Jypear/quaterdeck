@@ -1,9 +1,13 @@
-"""Note views: list/detail plus full CRUD and on-demand AI enrichment.
+"""Note views: list/detail plus full CRUD and two on-demand AI features.
 
 Plain full-page forms + redirect, not HTMX modals — smallest correct CRUD,
-matching the tasks/projects pattern. Enrichment is the one HTMX bit: a button
-posts to `enrich_note`, which renders a partial of suggested actions that can
-each be applied with their own one-click POST.
+matching the tasks/projects pattern. The AI surface is split in two:
+
+- `suggest_note` (HTMX): renders a partial of suggested links/actions that can
+  each be applied with their own one-click POST via `apply_action`.
+- `enrich_note` (streaming): rewrites the note body and streams the result as
+  plain text chunks; the frontend previews it and only `enrich_apply` writes
+  it back, so the original is never lost without confirmation.
 """
 
 from __future__ import annotations
@@ -11,20 +15,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
+from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from ai.providers import NullProvider, get_provider
-from notes.ai import build_prompt, parse_actions
+from budget.models import OneOffOutgoing, Pot
+from core.models import Settings
+from notes.ai import build_enrich_prompt, build_prompt, parse_actions
 from notes.forms import NoteForm
+from notes.markdown import render_markdown
 from notes.models import Note
 from projects.models import Project
 from tasks.models import Task
 
 if TYPE_CHECKING:
-    from django.http import HttpRequest, HttpResponse
+    from django.http import HttpRequest
 
 
 class NoteListView(ListView):
@@ -86,7 +94,7 @@ class NoteDeleteView(DeleteView):
 
 
 @require_POST
-def enrich_note(request: HttpRequest, pk: int) -> HttpResponse:
+def suggest_note(request: HttpRequest, pk: int) -> HttpResponse:
     """Send the note to the configured AI provider and render suggested actions.
 
     On-demand only — never triggered automatically, per Settings/AI design.
@@ -96,14 +104,14 @@ def enrich_note(request: HttpRequest, pk: int) -> HttpResponse:
     if isinstance(provider, NullProvider):
         return render(request, "notes/_suggestions.html", {"note": note, "unconfigured": True})
 
-    reply = provider.complete(build_prompt(note, Project.objects.all()))
-    actions = parse_actions(reply)
+    prompt = build_prompt(note, Project.objects.all(), Pot.objects.all(), OneOffOutgoing.objects.all())
+    actions = parse_actions(provider.complete(prompt))
     return render(request, "notes/_suggestions.html", {"note": note, "actions": actions})
 
 
 @require_POST
 def apply_action(request: HttpRequest, pk: int) -> HttpResponse:
-    """Apply one suggested action (create a linked task, or link a project) to a note."""
+    """Apply one suggested action (create a task, link, or new project) to a note."""
     note = get_object_or_404(Note, pk=pk)
     action_type = request.POST.get("type")
 
@@ -120,5 +128,65 @@ def apply_action(request: HttpRequest, pk: int) -> HttpResponse:
         note.linked_project = get_object_or_404(Project, pk=request.POST.get("project_id"))
         note.save(update_fields=["linked_project"])
         messages.success(request, "Note linked to project.")
+    elif action_type == "link_pot":
+        note.linked_pot = get_object_or_404(Pot, pk=request.POST.get("pot_id"))
+        note.save(update_fields=["linked_pot"])
+        messages.success(request, "Note linked to pot.")
+    elif action_type == "link_one_off":
+        note.linked_one_off = get_object_or_404(OneOffOutgoing, pk=request.POST.get("one_off_id"))
+        note.save(update_fields=["linked_one_off"])
+        messages.success(request, "Note linked to one-off payment.")
+    elif action_type == "create_project":
+        note.linked_project = Project.objects.create(
+            name=request.POST.get("name", ""),
+            description=request.POST.get("description", ""),
+        )
+        note.save(update_fields=["linked_project"])
+        messages.success(request, "Project created and linked.")
 
     return redirect(note.get_absolute_url())
+
+
+@require_POST
+def enrich_note(request: HttpRequest, pk: int) -> HttpResponse:  # noqa: ARG001
+    """Stream a rewritten/researched version of the note body as plain text chunks.
+
+    Non-destructive: this only streams text back to the page for preview.
+    Nothing is saved until the user confirms via `enrich_apply`.
+    """
+    note = get_object_or_404(Note, pk=pk)
+    provider = get_provider()
+    if isinstance(provider, NullProvider):
+
+        def unconfigured() -> Any:
+            yield "No AI provider configured. Set one up in Settings first."
+
+        chunks = unconfigured()
+    else:
+        settings = Settings.get()
+        chunks = provider.stream(build_enrich_prompt(note), web_search=settings.ai_web_search)
+
+    response = StreamingHttpResponse(chunks, content_type="text/plain; charset=utf-8")
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"  # ponytail: avoids proxy buffering; harmless if no proxy sits in front.
+    return response
+
+
+@require_POST
+def enrich_apply(request: HttpRequest, pk: int) -> HttpResponse:
+    """Replace the note body with the previewed, enriched text the user accepted."""
+    note = get_object_or_404(Note, pk=pk)
+    note.body = request.POST.get("body", "")
+    note.save(update_fields=["body"])
+    messages.success(request, "Note updated.")
+    return redirect(note.get_absolute_url())
+
+
+@require_POST
+def render_markdown_preview(request: HttpRequest) -> HttpResponse:
+    """Render arbitrary text as sanitised markdown HTML for the enrichment preview.
+
+    Stateless — takes no note pk, just renders whatever text the client sends.
+    """
+    html = render_markdown(request.POST.get("text", ""))
+    return HttpResponse(html, content_type="text/html; charset=utf-8")

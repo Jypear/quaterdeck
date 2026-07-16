@@ -23,6 +23,31 @@
       <input type="hidden" name="project_id" value="{{ action.project_id }}">
       <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
     </form>
+    {% elif action.type == "link_pot" %}
+    <span>Link to pot #{{ action.pot_id }}</span>
+    <form method="post" action="{% url 'notes:note_apply_action' note.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="type" value="link_pot">
+      <input type="hidden" name="pot_id" value="{{ action.pot_id }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </form>
+    {% elif action.type == "link_one_off" %}
+    <span>Link to one-off payment #{{ action.one_off_id }}</span>
+    <form method="post" action="{% url 'notes:note_apply_action' note.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="type" value="link_one_off">
+      <input type="hidden" name="one_off_id" value="{{ action.one_off_id }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </form>
+    {% elif action.type == "create_project" %}
+    <span>Create project: <strong>{{ action.name }}</strong></span>
+    <form method="post" action="{% url 'notes:note_apply_action' note.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="type" value="create_project">
+      <input type="hidden" name="name" value="{{ action.name }}">
+      <input type="hidden" name="description" value="{{ action.description|default:"" }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </form>
     {% endif %}
   </li>
   {% endfor %}

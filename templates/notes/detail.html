@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load notes_extras %}
 {% block title %}{{ note.title }} — Quaterdeck{% endblock %}
 {% block nav_notes %}active{% endblock %}
 {% block content %}
@@ -13,12 +14,125 @@
   </div>
 </div>
 <hr>
-<div class="mt-3">{{ note.body|linebreaks }}</div>
+<div class="mt-3">{{ note.body|markdown }}</div>
 
 <hr>
-<form hx-post="{% url 'notes:note_enrich' note.pk %}" hx-target="#suggestions" hx-swap="innerHTML">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-outline-primary btn-sm">Enrich ▸</button>
-</form>
+<div class="d-flex gap-2">
+  <form id="suggest-form" hx-post="{% url 'notes:note_suggest' note.pk %}" hx-target="#suggestions" hx-swap="innerHTML"
+        hx-indicator="#suggest-form, #suggest-spinner">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-primary btn-sm">
+      Suggest links ▸
+      <span id="suggest-spinner" class="spinner-border spinner-border-sm htmx-indicator ms-1" role="status" aria-hidden="true"></span>
+    </button>
+  </form>
+  <form id="enrich-form" class="d-inline">
+    {% csrf_token %}
+    <button type="button" id="enrich-btn" class="btn btn-outline-primary btn-sm">
+      Enrich note ▸
+      <span id="enrich-spinner" class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true"></span>
+    </button>
+  </form>
+</div>
 <div id="suggestions" class="mt-3"></div>
+
+<div id="enrich-preview" class="mt-3 d-none">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>Enriched preview — not saved yet</span>
+      <div>
+        <button type="button" id="enrich-accept" class="btn btn-sm btn-primary d-none">Replace note</button>
+        <button type="button" id="enrich-discard" class="btn btn-sm btn-outline-secondary">Discard</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <pre id="enrich-text" class="mb-0" style="white-space: pre-wrap; font-family: inherit;"></pre>
+      <div id="enrich-rendered" class="d-none"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var btn = document.getElementById("enrich-btn");
+  var spinner = document.getElementById("enrich-spinner");
+  var preview = document.getElementById("enrich-preview");
+  var textEl = document.getElementById("enrich-text");
+  var renderedEl = document.getElementById("enrich-rendered");
+  var acceptBtn = document.getElementById("enrich-accept");
+  var discardBtn = document.getElementById("enrich-discard");
+  var csrfToken = document.querySelector("#enrich-form [name=csrfmiddlewaretoken]").value;
+  var enrichUrl = "{% url 'notes:note_enrich' note.pk %}";
+  var applyUrl = "{% url 'notes:note_enrich_apply' note.pk %}";
+  var renderUrl = "{% url 'notes:render_markdown' %}";
+
+  function setLoading(isLoading) {
+    btn.disabled = isLoading;
+    spinner.classList.toggle("d-none", !isLoading);
+    btn.firstChild.textContent = isLoading ? "Enriching… " : "Enrich note ▸ ";
+  }
+
+  function showRendered(html) {
+    renderedEl.innerHTML = html;
+    textEl.classList.add("d-none");
+    renderedEl.classList.remove("d-none");
+  }
+
+  btn.addEventListener("click", function () {
+    textEl.textContent = "";
+    textEl.classList.remove("d-none");
+    renderedEl.classList.add("d-none");
+    preview.classList.remove("d-none");
+    acceptBtn.classList.add("d-none");
+    setLoading(true);
+
+    fetch(enrichUrl, { method: "POST", headers: { "X-CSRFToken": csrfToken } })
+      .then(function (response) {
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        function pump() {
+          return reader.read().then(function (result) {
+            if (result.done) {
+              acceptBtn.classList.remove("d-none");
+              setLoading(false);
+              return fetch(renderUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/x-www-form-urlencoded" },
+                body: "text=" + encodeURIComponent(textEl.textContent),
+              })
+                .then(function (renderResponse) { return renderResponse.text(); })
+                .then(showRendered);
+            }
+            textEl.textContent += decoder.decode(result.value, { stream: true });
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .catch(function () {
+        textEl.textContent += "\n[Error streaming response]";
+        setLoading(false);
+      });
+  });
+
+  discardBtn.addEventListener("click", function () {
+    preview.classList.add("d-none");
+    textEl.textContent = "";
+    renderedEl.innerHTML = "";
+  });
+
+  acceptBtn.addEventListener("click", function () {
+    acceptBtn.disabled = true;
+    fetch(applyUrl, {
+      method: "POST",
+      headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/x-www-form-urlencoded" },
+      body: "body=" + encodeURIComponent(textEl.textContent),
+    }).then(function () {
+      window.location.reload();
+    });
+  });
+})();
+</script>
 {% endblock %}

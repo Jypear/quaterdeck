@@ -351,6 +351,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mistune"
+version = "3.3.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/a5/2dab368d6950e6808904dec98f54c7e726ee7be4a0c6afe00e6e011bd52d/mistune-3.3.3.tar.gz", hash = "sha256:c4c6c0c840b8637a2e9b8b6d607eb7c8f00888bf14c754409bcd339e848c2477", size = 115363, upload-time = "2026-07-09T06:18:05.268Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/89/70/b1e4737b84163db5bb1dfde6f216dbfbf32783330a9989c965e121172830/mistune-3.3.3-py3-none-any.whl", hash = "sha256:99de1585e42dcbd826faa9e11a202727a5e202e4e4722a4c69ac1ff615793dd7", size = 63569, upload-time = "2026-07-09T06:18:03.839Z" },
+]
+
+[[package]]
 name = "openai"
 version = "2.45.0"
 source = { registry = "https://pypi.org/simple" }
@@ -537,6 +546,7 @@ dependencies = [
     { name = "django" },
     { name = "djangorestframework" },
     { name = "gunicorn" },
+    { name = "mistune" },
     { name = "openai" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
@@ -555,6 +565,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.1" },
     { name = "djangorestframework", specifier = ">=3.15" },
     { name = "gunicorn", specifier = ">=23.0" },
+    { name = "mistune", specifier = ">=3.0" },
     { name = "openai", specifier = ">=1.55" },
     { name = "psycopg2-binary", specifier = ">=2.9" },
     { name = "python-dotenv", specifier = ">=1.0" },

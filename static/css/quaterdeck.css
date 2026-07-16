@@ -265,6 +265,18 @@ textarea:focus-visible,
   transition: opacity 0.15s ease;
 }
 
+/* Spinner elements marked .htmx-indicator stay hidden until their request
+   is in flight (the ancestor gains .htmx-request during the swap). */
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

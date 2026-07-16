@@ -41,6 +41,10 @@ class Settings(models.Model):
     ai_provider = models.CharField(max_length=20, choices=AiProvider, default=AiProvider.NONE)
     ai_api_key = EncryptedCharField(blank=True, default="")
     ai_model = models.CharField(max_length=100, blank=True, default="")
+    ai_web_search = models.BooleanField(
+        default=False,
+        help_text="Let the AI search the web when enriching notes. Anthropic and OpenAI only — ignored by Ollama.",
+    )
 
     # Webhooks
     webhook_inbound_secret = EncryptedCharField(

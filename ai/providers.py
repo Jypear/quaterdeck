@@ -9,6 +9,10 @@ Usage:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class BaseAIProvider(ABC):
@@ -17,6 +21,14 @@ class BaseAIProvider(ABC):
     @abstractmethod
     def complete(self, prompt: str) -> str:
         """Send *prompt* and return the model's text response."""
+
+    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:  # noqa: ARG002
+        """Yield the response incrementally. `web_search` is a hint providers may ignore.
+
+        Default fallback for providers without real token streaming: yields the
+        whole `complete()` result as one chunk.
+        """
+        yield self.complete(prompt)
 
 
 class NullProvider(BaseAIProvider):
@@ -42,6 +54,19 @@ class AnthropicProvider(BaseAIProvider):
         )
         return message.content[0].text
 
+    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:
+        import anthropic  # type: ignore[import-untyped]
+
+        client = anthropic.Anthropic(api_key=self._api_key)
+        tools = [{"type": "web_search_20250305", "name": "web_search"}] if web_search else []
+        with client.messages.stream(
+            model=self._model,
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+            tools=tools,
+        ) as s:
+            yield from s.text_stream
+
 
 class OpenAIProvider(BaseAIProvider):
     def __init__(self, api_key: str, model: str) -> None:
@@ -57,6 +82,16 @@ class OpenAIProvider(BaseAIProvider):
             messages=[{"role": "user", "content": prompt}],
         )
         return response.choices[0].message.content or ""
+
+    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:
+        import openai  # type: ignore[import-untyped]
+
+        client = openai.OpenAI(api_key=self._api_key)
+        tools = [{"type": "web_search"}] if web_search else []
+        with client.responses.stream(model=self._model, input=prompt, tools=tools) as s:
+            for event in s:
+                if event.type == "response.output_text.delta":
+                    yield event.delta
 
 
 class OllamaProvider(BaseAIProvider):
@@ -77,6 +112,25 @@ class OllamaProvider(BaseAIProvider):
         with urllib.request.urlopen(req) as resp:
             data = json.loads(resp.read())
         return data.get("response", "")
+
+    def stream(self, prompt: str, *, web_search: bool = False) -> Iterator[str]:  # noqa: ARG002
+        import json
+        import urllib.request
+
+        # ponytail: web_search is unsupported by Ollama and silently ignored here.
+        payload = json.dumps({"model": self._model, "prompt": prompt, "stream": True}).encode()
+        req = urllib.request.Request(
+            f"{self._base_url}/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req) as resp:
+            for line in resp:
+                if not line.strip():
+                    continue
+                chunk = json.loads(line)
+                if chunk.get("response"):
+                    yield chunk["response"]
 
 
 def get_provider() -> BaseAIProvider:

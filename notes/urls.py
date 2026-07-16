@@ -11,7 +11,10 @@ urlpatterns = [
     path("note/add/", views.NoteCreateView.as_view(), name="note_add"),
     path("note/<int:pk>/edit/", views.NoteUpdateView.as_view(), name="note_edit"),
     path("note/<int:pk>/delete/", views.NoteDeleteView.as_view(), name="note_delete"),
-    # AI enrichment
-    path("note/<int:pk>/enrich/", views.enrich_note, name="note_enrich"),
+    # AI: suggestions (link/create) + enrichment (rewrite/research)
+    path("note/<int:pk>/suggest/", views.suggest_note, name="note_suggest"),
     path("note/<int:pk>/apply-action/", views.apply_action, name="note_apply_action"),
+    path("note/<int:pk>/enrich/", views.enrich_note, name="note_enrich"),
+    path("note/<int:pk>/enrich/apply/", views.enrich_apply, name="note_enrich_apply"),
+    path("render-markdown/", views.render_markdown_preview, name="render_markdown"),
 ]
