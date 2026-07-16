@@ -1,1 +1,156 @@
-/* Site-specific overrides — kept minimal, Bootstrap handles the rest. */
+/*
+ * Quaterdeck design tokens — "dusk command deck".
+ *
+ * Loaded after bootstrap.min.css (see base.html), so any rule here wins on
+ * equal specificity. Bootstrap 5.3 drives most global chrome (body, links,
+ * borders) off root-level CSS variables, which we simply remap per theme
+ * below. Individual components (buttons, form checks, nav pills) bake their
+ * own colours into *local* custom properties at compile time rather than
+ * reading the global ones, so those get a handful of explicit overrides
+ * further down instead.
+ */
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../vendor/fraunces/fraunces-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../vendor/fraunces/fraunces-700.woff2") format("woff2");
+}
+
+:root {
+  /* Raw palette — the single source of truth for the theme below. */
+  --qd-navy: #10233a;
+  --qd-navy-rgb: 16, 35, 58;
+  --qd-brass: #c8912f;
+  --qd-brass-rgb: 200, 145, 47;
+  --qd-brass-hover: #b8842a;
+  --qd-brass-active: #a8781f;
+  --qd-brass-deep: #8a5f17;
+  --qd-brass-deep-rgb: 138, 95, 23;
+  --qd-verdigris: #3e7c74;
+  --qd-verdigris-rgb: 62, 124, 116;
+  --qd-parchment: #f6f1e7;
+  --qd-parchment-rgb: 246, 241, 231;
+
+  --qd-font-display: "Fraunces", var(--bs-font-sans-serif);
+}
+
+/* Surfaces, text, links and borders — theme-scoped, matching Bootstrap's own
+   color-mode selectors so it wins by source order alone. */
+:root,
+[data-bs-theme="light"] {
+  --bs-body-bg: var(--qd-parchment);
+  --bs-body-bg-rgb: var(--qd-parchment-rgb);
+  --bs-body-color: var(--qd-navy);
+  --bs-body-color-rgb: var(--qd-navy-rgb);
+  --bs-emphasis-color: var(--qd-navy);
+  --bs-border-color: #ddd3bf;
+  --bs-border-color-translucent: rgba(16, 35, 58, 0.15);
+  --bs-link-color: var(--qd-brass-deep);
+  --bs-link-color-rgb: var(--qd-brass-deep-rgb);
+  --bs-link-hover-color: var(--qd-navy);
+  --bs-primary: var(--qd-brass-deep);
+  --bs-primary-rgb: var(--qd-brass-deep-rgb);
+}
+
+[data-bs-theme="dark"] {
+  --bs-body-bg: var(--qd-navy);
+  --bs-body-bg-rgb: var(--qd-navy-rgb);
+  --bs-body-color: var(--qd-parchment);
+  --bs-body-color-rgb: var(--qd-parchment-rgb);
+  --bs-emphasis-color: #fff;
+  --bs-secondary-bg: #182f4b;
+  --bs-tertiary-bg: #142943;
+  --bs-border-color: #2a4260;
+  --bs-border-color-translucent: rgba(246, 241, 231, 0.15);
+  --bs-link-color: var(--qd-brass);
+  --bs-link-color-rgb: var(--qd-brass-rgb);
+  --bs-link-hover-color: #fff;
+  --bs-primary: var(--qd-brass);
+  --bs-primary-rgb: var(--qd-brass-rgb);
+}
+
+body {
+  font-family: var(--bs-font-sans-serif);
+}
+
+h1, h2, h3, h4, h5, h6,
+.navbar-brand,
+.display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+  font-family: var(--qd-font-display);
+  font-weight: 600;
+}
+
+::selection {
+  background-color: rgba(var(--qd-brass-rgb), 0.35);
+}
+
+/* Filled buttons are a minted brass chip regardless of page theme — the
+   button supplies its own background, so it doesn't need to vary with
+   light/dark like text and links do. */
+.btn-primary {
+  --bs-btn-color: var(--qd-navy);
+  --bs-btn-bg: var(--qd-brass);
+  --bs-btn-border-color: var(--qd-brass);
+  --bs-btn-hover-color: var(--qd-navy);
+  --bs-btn-hover-bg: var(--qd-brass-hover);
+  --bs-btn-hover-border-color: var(--qd-brass-hover);
+  --bs-btn-active-color: var(--qd-navy);
+  --bs-btn-active-bg: var(--qd-brass-active);
+  --bs-btn-active-border-color: var(--qd-brass-active);
+  --bs-btn-focus-shadow-rgb: var(--qd-brass-rgb);
+  --bs-btn-disabled-color: var(--qd-navy);
+  --bs-btn-disabled-bg: var(--qd-brass);
+  --bs-btn-disabled-border-color: var(--qd-brass);
+}
+
+/* Outline/text usages track the theme-scoped --bs-primary (deep brass on
+   parchment, vivid brass on navy) so they stay legible either way. */
+.btn-outline-primary {
+  --bs-btn-color: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-color: var(--qd-navy);
+  --bs-btn-hover-bg: var(--qd-brass);
+  --bs-btn-hover-border-color: var(--qd-brass);
+  --bs-btn-active-color: var(--qd-navy);
+  --bs-btn-active-bg: var(--qd-brass);
+  --bs-btn-active-border-color: var(--qd-brass);
+  --bs-btn-disabled-color: var(--bs-primary);
+  --bs-btn-disabled-border-color: var(--bs-primary);
+}
+
+.nav-pills {
+  --bs-nav-pills-link-active-color: var(--qd-navy);
+  --bs-nav-pills-link-active-bg: var(--qd-brass);
+}
+
+.form-check-input:checked {
+  background-color: var(--qd-brass);
+  border-color: var(--qd-brass);
+}
+
+.form-check-input:focus,
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--qd-brass);
+  box-shadow: 0 0 0 0.25rem rgba(var(--qd-brass-rgb), 0.25);
+}
+
+/* Verdigris marks the app's other recurring meaning — savings/positive
+   progress — kept separate from the brass action colour above. */
+.text-verdigris {
+  color: var(--qd-verdigris);
+}
+
+.bg-verdigris {
+  background-color: var(--qd-verdigris);
+}

@@ -17,6 +17,9 @@ const FILES = [
   ["node_modules/bootstrap/dist/js/bootstrap.bundle.min.js.map", "bootstrap/bootstrap.bundle.min.js.map"],
   ["node_modules/htmx.org/dist/htmx.min.js", "htmx/htmx.min.js"],
   ["node_modules/alpinejs/dist/cdn.min.js", "alpinejs/alpine.min.js"],
+  // Display face for branding/headings — latin subset only, two weights.
+  ["node_modules/@fontsource/fraunces/files/fraunces-latin-500-normal.woff2", "fraunces/fraunces-500.woff2"],
+  ["node_modules/@fontsource/fraunces/files/fraunces-latin-700-normal.woff2", "fraunces/fraunces-700.woff2"],
 ];
 
 for (const [src, dest] of FILES) {

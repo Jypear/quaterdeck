@@ -6,8 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Quaterdeck{% endblock %}</title>
 
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" sizes="32x32">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+
   {# Bootstrap 5 — served locally. Run: npm install && npm run vendor #}
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/quaterdeck.css' %}">
 
   {% block extra_css %}{% endblock %}
 </head>
@@ -15,7 +20,14 @@
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
-    <a class="navbar-brand fw-bold" href="{% url 'core:dashboard' %}">Quaterdeck</a>
+    <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="{% url 'core:dashboard' %}">
+      <svg viewBox="0 0 64 64" fill="none" width="28" height="28" role="img" aria-hidden="true">
+        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="3"/>
+        <path fill="currentColor" d="M32 8 38.36 25.64 52 32 38.36 38.36 32 52 25.64 38.36 12 32 25.64 25.64Z"/>
+        <path fill="currentColor" d="M42.3 48.8 61.3 48.8 61.3 54.8 42.3 54.8Z" transform="rotate(35 51.8 51.8)"/>
+      </svg>
+      Quaterdeck
+    </a>
     <button class="navbar-toggler" type="button"
             data-bs-toggle="collapse" data-bs-target="#navMain">
       <span class="navbar-toggler-icon"></span>

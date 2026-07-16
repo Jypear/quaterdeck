@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-hidden="true">
+  <!-- Minted coin rim -->
+  <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="3"/>
+  <!-- Compass rose / needle, north tip elongated -->
+  <path fill="currentColor" d="M32 8 38.36 25.64 52 32 38.36 38.36 32 52 25.64 38.36 12 32 25.64 25.64Z"/>
+  <!-- Q tail, straight and blocky -->
+  <path fill="currentColor" d="M42.3 48.8 61.3 48.8 61.3 54.8 42.3 54.8Z" transform="rotate(35 51.8 51.8)"/>
+</svg>
