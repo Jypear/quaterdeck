@@ -208,3 +208,6 @@ __marimo__/
 
 # Node (used only to vendor Bootstrap/HTMX/Alpine into static/vendor/, see package.json)
 node_modules/
+
+# Dev 
+TODO.md
