@@ -39,6 +39,13 @@ def to_display(amount: Decimal) -> Decimal:
     return amount.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
+def outgoings_percentage(income: Decimal, outgoings: Decimal) -> int:
+    """Outgoings as a percentage of income, capped at 100 for progress bars/gauges."""
+    if income <= 0:
+        return 100 if outgoings > 0 else 0
+    return min(100, int(outgoings / income * 100))
+
+
 def normalise(amount: Decimal, frequency: str, mode: str) -> Decimal:
     """Convert `amount` (recurring at `frequency`) into its equivalent over one `mode` period."""
     annual = amount * _PERIODS_PER_YEAR[frequency]

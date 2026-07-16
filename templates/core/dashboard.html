@@ -5,57 +5,188 @@
 {% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
-<h1 class="h3 mb-4">Dashboard</h1>
-<div class="row g-3">
-  <div class="col-12 col-md-6 col-xl-3">
-    <a href="{% url 'budget:overview' %}" class="text-decoration-none">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Budget</h5>
-          <p class="card-text text-muted">Income, outgoings, and surplus.</p>
-        </div>
+<div class="row g-4 mb-4 align-items-center">
+  <div class="col-12 col-lg-4">
+    <div class="helm-gauge-wrap mx-auto">
+      <svg class="helm-gauge" viewBox="0 0 200 200" role="img"
+           aria-label="Outgoings are {{ outgoings_pct }}% of income this period">
+        <g class="helm-gauge-ticks">
+          <line x1="100" y1="12" x2="100" y2="2"/>
+          <line x1="162.2" y1="37.8" x2="169.3" y2="30.7"/>
+          <line x1="188" y1="100" x2="198" y2="100"/>
+          <line x1="162.2" y1="162.2" x2="169.3" y2="169.3"/>
+          <line x1="100" y1="188" x2="100" y2="198"/>
+          <line x1="37.8" y1="162.2" x2="30.7" y2="169.3"/>
+          <line x1="12" y1="100" x2="2" y2="100"/>
+          <line x1="37.8" y1="37.8" x2="30.7" y2="30.7"/>
+        </g>
+        <g transform="rotate(-90 100 100)">
+          <circle cx="100" cy="100" r="80" class="helm-gauge-track"/>
+          <circle cx="100" cy="100" r="80"
+                  class="helm-gauge-fill {% if outgoings_pct >= 100 %}text-danger{% elif outgoings_pct >= 80 %}text-brass{% else %}text-verdigris{% endif %}"
+                  style="--pct: {{ outgoings_pct }};"/>
+        </g>
+      </svg>
+      <div class="helm-gauge-center">
+        <span class="helm-gauge-amount">{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</span>
+        <span class="helm-gauge-label">
+          {% if summary.adjusted_surplus >= 0 %}surplus{% else %}over budget{% endif %}
+          · {{ summary.period.start|date:"d M" }}–{{ summary.period.end|date:"d M" }}
+        </span>
       </div>
-    </a>
+    </div>
   </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <a href="{% url 'tasks:list' %}" class="text-decoration-none">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Tasks</h5>
-          <p class="card-text text-muted">Your to-do list.</p>
+  <div class="col-12 col-lg-8">
+    <div class="row g-3 mb-2">
+      <div class="col-6 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Income</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_income|floatformat:2 }}</p>
+          </div>
         </div>
       </div>
-    </a>
+      <div class="col-6 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Outgoings</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_outgoings|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100 {% if summary.unallocated_surplus > 0 %}border-brass{% endif %}">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Unallocated</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.unallocated_surplus|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <a href="{% url 'budget:overview' %}" class="small">View full budget &rarr;</a>
   </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <a href="{% url 'core:calendar' %}" class="text-decoration-none">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Calendar</h5>
-          <p class="card-text text-muted">Tasks, one-offs, and pot deadlines.</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Savings goals</h2>
+          <a href="{% url 'budget:pots' %}" class="small">View all &rarr;</a>
         </div>
+        {% if pot_rows %}
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for row in pot_rows %}
+          <li class="d-flex justify-content-between align-items-center gap-2">
+            <a href="{% url 'budget:pot_edit' row.pot.id %}" class="text-reset text-decoration-none text-truncate">{{ row.pot.name }}</a>
+            {% if row.status == "ahead" %}
+            <span class="badge bg-success">Ahead</span>
+            {% elif row.status == "behind" %}
+            <span class="badge bg-danger">Behind</span>
+            {% else %}
+            <span class="badge bg-primary">On track</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary small mb-0">No pots yet — start a savings goal.</p>
+        {% endif %}
       </div>
-    </a>
+    </div>
   </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <a href="{% url 'projects:list' %}" class="text-decoration-none">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Projects</h5>
-          <p class="card-text text-muted">Linked tasks, notes, and pots.</p>
+
+  <div class="col-12 col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Upcoming</h2>
+          <a href="{% url 'core:calendar' %}" class="small">View calendar &rarr;</a>
         </div>
+        {% if upcoming_events %}
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for day, event in upcoming_events %}
+          <li class="d-flex justify-content-between align-items-center gap-2">
+            <a href="{{ event.url }}" class="text-reset text-decoration-none text-truncate">{{ event.label }}</a>
+            <span class="badge {{ event.css }}">{{ day|date:"d M" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary small mb-0">Nothing on the horizon for the next two weeks.</p>
+        {% endif %}
       </div>
-    </a>
+    </div>
   </div>
-  <div class="col-12 col-md-6 col-xl-3">
-    <a href="{% url 'notes:list' %}" class="text-decoration-none">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">Notes</h5>
-          <p class="card-text text-muted">Free-form notes with optional AI.</p>
+
+  <div class="col-12 col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Tasks</h2>
+          <a href="{% url 'tasks:list' %}" class="small">View all &rarr;</a>
         </div>
+        {% if open_tasks %}
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for task in open_tasks %}
+          <li class="d-flex justify-content-between align-items-center gap-2">
+            <a href="{% url 'tasks:task_edit' task.pk %}" class="text-reset text-decoration-none text-truncate">{{ task.title }}</a>
+            {% if task.due_date %}<span class="text-body-secondary small text-nowrap">{{ task.due_date|date:"d M" }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary small mb-0">Nothing open — add a task to get started.</p>
+        {% endif %}
       </div>
-    </a>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Recent notes</h2>
+          <a href="{% url 'notes:list' %}" class="small">View all &rarr;</a>
+        </div>
+        {% if recent_notes %}
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for note in recent_notes %}
+          <li>
+            <a href="{{ note.get_absolute_url }}" class="text-reset text-decoration-none">{{ note.title }}</a>
+            <span class="text-body-secondary small d-block">{{ note.updated_at|date:"d M Y" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary small mb-0">No notes yet — capture your first thought.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6 col-xl-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Projects</h2>
+          <a href="{% url 'projects:list' %}" class="small">View all &rarr;</a>
+        </div>
+        {% if projects %}
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for project in projects %}
+          <li class="d-flex justify-content-between align-items-center gap-2">
+            <a href="{{ project.get_absolute_url }}" class="text-reset text-decoration-none text-truncate">{{ project.name }}</a>
+            <span class="text-body-secondary small text-nowrap">{{ project.tasks.all|length }} tasks</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary small mb-0">No projects yet — group related work together.</p>
+        {% endif %}
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -165,3 +165,84 @@ h1, h2, h3, h4, h5, h6,
 .bg-verdigris {
   background-color: var(--qd-verdigris);
 }
+
+.text-brass {
+  color: var(--qd-brass) !important;
+}
+
+.border-brass {
+  border-color: var(--qd-brass) !important;
+}
+
+/* Dashboard hero — a helm gauge echoing the coin/compass logo: a ring of
+   compass ticks framing a progress arc, surplus minted in the centre. */
+.helm-gauge-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+}
+
+.helm-gauge {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.helm-gauge-ticks line {
+  stroke: var(--qd-brass);
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+.helm-gauge-track {
+  fill: none;
+  /* Derived from body-color rather than --bs-border-color: in dark mode the
+     border colour sits too close in hue to verdigris to read as "empty". */
+  stroke: rgba(var(--bs-body-color-rgb), 0.15);
+  stroke-width: 14;
+}
+
+.helm-gauge-fill {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-dasharray: 502.65;
+  stroke-dashoffset: calc(502.65 * (1 - var(--pct) / 100));
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .helm-gauge-fill {
+    transition: none;
+  }
+}
+
+.helm-gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 1.5rem;
+  pointer-events: none;
+}
+
+.helm-gauge-amount {
+  font-family: var(--qd-font-display);
+  font-weight: 600;
+  font-size: 1.6rem;
+  line-height: 1.15;
+  color: var(--bs-emphasis-color);
+}
+
+.helm-gauge-label {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
+}

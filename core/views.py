@@ -14,10 +14,14 @@ from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
 
-from budget.services import active_period
+from budget.models import Pot
+from budget.services import active_period, budget_summary, outgoings_percentage, pot_progress
 from core.events import CalEvent, month_events
 from core.forms import SettingsForm
 from core.models import Settings
+from notes.models import Note
+from projects.models import Project
+from tasks.models import Task
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
@@ -25,6 +29,40 @@ if TYPE_CHECKING:
 
 class DashboardView(TemplateView):
     template_name = "core/dashboard.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        summary = budget_summary(settings.budget_mode, period)
+
+        today = date.today()
+        upcoming = month_events(today, today + timedelta(days=14))
+        upcoming_events = sorted(
+            ((day, event) for day, events in upcoming.items() for event in events),
+            key=lambda pair: pair[0],
+        )[:6]
+
+        pots = Pot.objects.select_related("linked_project").prefetch_related("entries")
+        pot_rows = sorted(
+            (pot_progress(pot, settings.budget_mode, period) for pot in pots),
+            key=lambda row: (row.status != "behind", row.pot.target_date),
+        )[:3]
+
+        context.update(
+            {
+                "currency": settings.currency,
+                "period": period,
+                "summary": summary,
+                "outgoings_pct": outgoings_percentage(summary.total_income, summary.total_outgoings),
+                "upcoming_events": upcoming_events,
+                "pot_rows": pot_rows,
+                "open_tasks": Task.objects.exclude(status=Task.Status.DONE)[:5],
+                "recent_notes": Note.objects.all()[:5],
+                "projects": Project.objects.prefetch_related("tasks", "pots")[:5],
+            }
+        )
+        return context
 
 
 class SettingsUpdateView(UpdateView):

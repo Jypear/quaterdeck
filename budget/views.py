@@ -39,14 +39,13 @@ from budget.services import (
     account_summary,
     active_period,
     budget_summary,
+    outgoings_percentage,
     pot_progress,
     to_display,
 )
 from core.models import Settings
 
 if TYPE_CHECKING:
-    from decimal import Decimal
-
     from django.http import HttpRequest, HttpResponse
 
 
@@ -69,13 +68,6 @@ def _is_partial_request(request: HttpRequest) -> bool:
     return request.headers.get("HX-Request") == "true"
 
 
-def _outgoings_percentage(income: Decimal, outgoings: Decimal) -> int:
-    """Outgoings as a percentage of income, capped at 100 for the progress bar."""
-    if income <= 0:
-        return 100 if outgoings > 0 else 0
-    return min(100, int(outgoings / income * 100))
-
-
 class BudgetOverviewView(TemplateView):
     def get_template_names(self) -> list[str]:
         return ["budget/_summary.html"] if _is_partial_request(self.request) else ["budget/overview.html"]
@@ -95,7 +87,7 @@ class BudgetOverviewView(TemplateView):
         context["selected_account_ids"] = account_ids
         context["summary"] = summary
         context["currency"] = settings.currency
-        context["outgoings_pct"] = _outgoings_percentage(summary.total_income, summary.total_outgoings)
+        context["outgoings_pct"] = outgoings_percentage(summary.total_income, summary.total_outgoings)
         return context
 
 
