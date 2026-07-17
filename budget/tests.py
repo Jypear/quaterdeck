@@ -22,6 +22,7 @@ from budget.models import (
 from budget.services import (
     Period,
     account_summary,
+    account_timelines,
     active_period,
     budget_summary,
     normalise,
@@ -175,6 +176,69 @@ class ScheduledDatesTests(TestCase):
         )
         dates = scheduled_dates(wages, date(2026, 7, 1), date(2026, 8, 1))
         assert dates == [date(2026, 7, 6), date(2026, 7, 20)]
+
+
+class AccountTimelinesTests(TestCase):
+    """`account_timelines` builds each account's ordered, running-balance stops."""
+
+    def setUp(self) -> None:
+        self.personal = Account.objects.create(name="Personal")
+        self.joint = Account.objects.create(name="Joint")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+
+    def test_stops_are_ordered_signed_and_running_balance_starts_at_zero(self) -> None:
+        IncomeStream.objects.create(
+            name="Salary",
+            amount=Decimal("1000"),
+            account=self.personal,
+            frequency="monthly",
+            recurring_day=1,
+        )
+        Outgoing.objects.create(
+            name="Rent",
+            amount=Decimal("400"),
+            category=self.category,
+            account=self.personal,
+            frequency="monthly",
+            recurring_day=15,
+        )
+
+        lanes = account_timelines(date(2026, 7, 1), date(2026, 8, 1))
+        lane = next(lane for lane in lanes if lane.account.id == self.personal.id)
+
+        assert [stop.date for stop in lane.stops] == [date(2026, 7, 1), date(2026, 7, 15)]
+        assert lane.stops[0].amount == Decimal("1000")
+        assert lane.stops[0].kind == "income"
+        assert lane.stops[0].balance == Decimal("1000")
+        assert lane.stops[1].amount == Decimal("-400")
+        assert lane.stops[1].balance == Decimal("600")
+        assert lane.end_balance == Decimal("600")
+
+    def test_transfer_appears_on_both_lanes_sharing_a_transfer_id(self) -> None:
+        transfer = Transfer.objects.create(
+            name="Joint contribution",
+            from_account=self.personal,
+            to_account=self.joint,
+            amount=Decimal("200"),
+            frequency="monthly",
+            recurring_day=10,
+        )
+
+        lanes = {lane.account.id: lane for lane in account_timelines(date(2026, 7, 1), date(2026, 8, 1))}
+
+        out_stop = lanes[self.personal.id].stops[0]
+        in_stop = lanes[self.joint.id].stops[0]
+        assert out_stop.amount == Decimal("-200")
+        assert in_stop.amount == Decimal("200")
+        assert out_stop.transfer_id == in_stop.transfer_id == transfer.id
+
+    def test_one_off_outside_window_is_excluded(self) -> None:
+        OneOffOutgoing.objects.create(
+            name="Car service", amount=Decimal("300"), due_date=date(2026, 9, 1), account=self.personal
+        )
+        lanes = account_timelines(date(2026, 7, 1), date(2026, 8, 1))
+        lane = next(lane for lane in lanes if lane.account.id == self.personal.id)
+        assert lane.stops == []
 
 
 class PeriodsBetweenTests(TestCase):

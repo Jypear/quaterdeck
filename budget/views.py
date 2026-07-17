@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
@@ -37,7 +38,12 @@ from budget.models import (
 )
 from budget.services import (
     ZERO,
+    AccountLane,
+    Period,
+    _monthly_anchor,
+    _shift_month,
     account_summary,
+    account_timelines,
     active_period,
     budget_summary,
     outgoings_percentage,
@@ -48,6 +54,19 @@ from core.models import Settings
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
+
+_TIMELINE_MONTH_CHOICES = (1, 3, 6)
+_TIMELINE_CHART_LEFT = 20
+_TIMELINE_CHART_WIDTH = 940
+_TIMELINE_TOP_MARGIN = 40
+_TIMELINE_LANE_HEIGHT = 110
+
+_TIMELINE_KIND_CSS = {
+    "income": "timeline-stop-income",
+    "outgoing": "timeline-stop-outgoing",
+    "oneoff": "timeline-stop-outgoing",
+    "transfer": "timeline-stop-transfer",
+}
 
 
 def _requested_mode(request: HttpRequest, settings: Settings) -> str:
@@ -171,6 +190,106 @@ class PotListView(TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.update(_pots_context(Settings.get()))
+        return context
+
+
+def _requested_months(request: HttpRequest) -> int:
+    """Timeline horizon in months: `?months=` override (1/3/6), else 3."""
+    raw = request.GET.get("months")
+    try:
+        months = int(raw)
+    except (TypeError, ValueError):
+        return 3
+    return months if months in _TIMELINE_MONTH_CHOICES else 3
+
+
+def _timeline_svg(lanes: list[AccountLane], start: date, end: date) -> dict[str, Any]:
+    """Geometry for the timeline SVG: lane rows of positioned stops, cross-lane
+    transfer connectors, and month-boundary axis ticks. Kept in the view (not
+    services) since it's presentation, not domain logic."""
+    total_days = (end - start).days or 1
+
+    def x_for(d: date) -> float:
+        return _TIMELINE_CHART_LEFT + (d - start).days / total_days * _TIMELINE_CHART_WIDTH
+
+    axis_ticks = []
+    year, month = start.year, start.month
+    while date(year, month, 1) < end:
+        month_start = date(year, month, 1)
+        axis_ticks.append({"x": x_for(max(month_start, start)), "label": month_start.strftime("%b %Y")})
+        year, month = _shift_month(year, month, 1)
+
+    lane_rows = []
+    connector_points: dict[tuple[int, date], list[tuple[float, float]]] = {}
+    for index, lane in enumerate(lanes):
+        y = _TIMELINE_TOP_MARGIN + index * _TIMELINE_LANE_HEIGHT + _TIMELINE_LANE_HEIGHT / 2
+        stops = []
+        hover_points = []
+        for stop_index, stop in enumerate(lane.stops):
+            cx = x_for(stop.date)
+            balance_str = f"{stop.balance:.2f}"
+            stops.append(
+                {
+                    "x": cx,
+                    "y": y,
+                    "css": _TIMELINE_KIND_CSS[stop.kind],
+                    "label": stop.label,
+                    "date": stop.date,
+                    "amount_str": f"{stop.amount:+.2f}",
+                    "balance_str": balance_str,
+                    "above": stop_index % 2 == 0,
+                }
+            )
+            hover_points.append({"x": cx, "balance": balance_str, "date": stop.date.strftime("%d %b")})
+            if stop.transfer_id is not None:
+                connector_points.setdefault((stop.transfer_id, stop.date), []).append((cx, y))
+        lane_rows.append(
+            {
+                "account": lane.account,
+                "y": y,
+                "name_y": y - _TIMELINE_LANE_HEIGHT / 2 + 18,
+                "balance_y": y + _TIMELINE_LANE_HEIGHT / 2 - 10,
+                "stops": stops,
+                "end_balance_str": f"{lane.end_balance:.2f}",
+                "hover_id": f"lane-hover-{index}",
+                "hover_points": hover_points,
+            }
+        )
+
+    connectors = []
+    for points in connector_points.values():
+        if len(points) == 2:
+            (x, y1), (_, y2) = points
+            connectors.append({"x": x, "y1": y1, "y2": y2})
+
+    height = _TIMELINE_TOP_MARGIN + _TIMELINE_LANE_HEIGHT * len(lanes) + 20
+    return {"width": 1000, "height": height, "lanes": lane_rows, "connectors": connectors, "axis_ticks": axis_ticks}
+
+
+class TimelineView(TemplateView):
+    def get_template_names(self) -> list[str]:
+        return ["budget/_timeline.html"] if _is_partial_request(self.request) else ["budget/timeline.html"]
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        account_ids = _requested_account_ids(self.request)
+        months = _requested_months(self.request)
+
+        start = active_period(settings.budget_mode, settings.budget_start_day).start
+        end_year, end_month = _shift_month(start.year, start.month, months)
+        end = _monthly_anchor(end_year, end_month, start.day)
+
+        lanes = account_timelines(start, end, account_ids)
+
+        context["svg"] = _timeline_svg(lanes, start, end)
+        context["all_accounts"] = Account.objects.filter(is_active=True)
+        context["selected_account_ids"] = account_ids
+        context["months"] = months
+        context["month_choices"] = _TIMELINE_MONTH_CHOICES
+        context["currency"] = settings.currency
+        context["window"] = Period(start, end)
+        context["has_stops"] = any(lane.stops for lane in lanes)
         return context
 
 

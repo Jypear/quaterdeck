@@ -1,0 +1,43 @@
+{% if not has_stops %}
+<p class="text-muted">No scheduled income, outgoings, or transfers fall in this window for the selected accounts.</p>
+{% else %}
+<div class="timeline-scroll">
+  <svg viewBox="0 0 {{ svg.width }} {{ svg.height }}" class="timeline-svg" role="img"
+       aria-label="Budget timeline from {{ window.start|date:'d M Y' }} to {{ window.end|date:'d M Y' }}"
+       preserveAspectRatio="xMinYMin meet">
+    {% for tick in svg.axis_ticks %}
+    <line x1="{{ tick.x }}" y1="0" x2="{{ tick.x }}" y2="{{ svg.height }}" class="timeline-axis-line" />
+    <text x="{{ tick.x }}" y="14" class="timeline-axis-label">{{ tick.label }}</text>
+    {% endfor %}
+
+    {% for connector in svg.connectors %}
+    <line x1="{{ connector.x }}" y1="{{ connector.y1 }}" x2="{{ connector.x }}" y2="{{ connector.y2 }}"
+          class="timeline-connector" />
+    {% endfor %}
+
+    {% for lane in svg.lanes %}
+    <g class="timeline-lane" data-hover-id="{{ lane.hover_id }}" data-currency="{{ currency }}"
+       data-end-balance="{{ lane.end_balance_str }}">
+      <line x1="0" y1="{{ lane.y }}" x2="{{ svg.width }}" y2="{{ lane.y }}" class="timeline-lane-line" />
+      <text x="4" y="{{ lane.name_y }}" class="timeline-lane-label">{{ lane.account.name }}</text>
+      <text x="4" y="{{ lane.balance_y }}" class="timeline-lane-balance">Net {{ currency }} {{ lane.end_balance_str }}</text>
+
+      {% for stop in lane.stops %}
+      <g class="timeline-stop {{ stop.css }}">
+        <title>{{ stop.date|date:"D d M Y" }} — {{ stop.label }} — {{ currency }} {{ stop.amount_str }} — balance {{ currency }} {{ stop.balance_str }}</title>
+        <circle cx="{{ stop.x }}" cy="{{ stop.y }}" r="6" />
+        <text x="{{ stop.x }}" y="{{ stop.y }}" class="timeline-stop-label" dy="{% if stop.above %}-12{% else %}24{% endif %}">
+          {{ stop.label }} {{ currency }}{{ stop.amount_str }}
+        </text>
+      </g>
+      {% endfor %}
+    </g>
+    {% endfor %}
+
+    <line x1="0" y1="0" x2="0" y2="{{ svg.height }}" class="timeline-crosshair" style="display: none;" />
+  </svg>
+  {% for lane in svg.lanes %}
+  {{ lane.hover_points|json_script:lane.hover_id }}
+  {% endfor %}
+</div>
+{% endif %}

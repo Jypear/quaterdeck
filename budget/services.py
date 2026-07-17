@@ -296,6 +296,61 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
 
 
 @dataclass
+class TimelineStop:
+    date: date
+    label: str
+    amount: Decimal  # signed: + income/transfer-in, - outgoing/transfer-out/one-off
+    kind: str  # "income" / "outgoing" / "transfer" / "oneoff"
+    balance: Decimal  # running balance after this stop, starting from 0
+    transfer_id: int | None = None  # shared by a transfer's two stops (out + in), for drawing a connector
+
+
+@dataclass
+class AccountLane:
+    account: Account
+    stops: list[TimelineStop]
+    end_balance: Decimal
+
+
+def account_timelines(start: date, end: date, account_ids: Iterable[int] | None = None) -> list[AccountLane]:
+    """One lane per active (or selected) account: every dated
+    income/outgoing/transfer/one-off in [start, end), in date order, with a
+    running balance from 0.
+
+    Recurring entries use `scheduled_dates` (unscheduled entries, i.e. no
+    `recurring_day`, don't appear — nothing to place them on the axis).
+    """
+    lanes = []
+    for account in _prefetched_accounts(account_ids):
+        raw: list[tuple[date, str, Decimal, str, int | None]] = []
+        for income in account.income_streams.all():
+            for d in scheduled_dates(income, start, end):
+                raw.append((d, income.name, income.amount, "income", None))
+        for outgoing in account.outgoings.all():
+            for d in scheduled_dates(outgoing, start, end):
+                raw.append((d, outgoing.name, -outgoing.amount, "outgoing", None))
+        for transfer in account.transfers_out.all():
+            for d in scheduled_dates(transfer, start, end):
+                raw.append((d, transfer.name, -transfer.amount, "transfer", transfer.id))
+        for transfer in account.transfers_in.all():
+            for d in scheduled_dates(transfer, start, end):
+                raw.append((d, transfer.name, transfer.amount, "transfer", transfer.id))
+        for one_off in account.one_off_outgoings.all():
+            if start <= one_off.due_date < end:
+                raw.append((one_off.due_date, one_off.name, -one_off.amount, "oneoff", None))
+
+        raw.sort(key=lambda row: row[0])
+        stops = []
+        balance = ZERO
+        for d, label, amount, kind, transfer_id in raw:
+            balance += amount
+            stops.append(TimelineStop(d, label, amount, kind, balance, transfer_id))
+
+        lanes.append(AccountLane(account=account, stops=stops, end_balance=balance))
+    return lanes
+
+
+@dataclass
 class PotProgress:
     pot: Pot
     status: str  # "ahead" / "on_track" / "behind"

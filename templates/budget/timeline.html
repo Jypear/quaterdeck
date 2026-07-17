@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Timeline — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% include "_page_header.html" with title="Timeline" subtitle="Income, outgoings, and transfers plotted on their real dates." %}
+{% include "budget/_subnav.html" %}
+
+<form id="timeline-filters" class="row g-3 align-items-start mb-4"
+      hx-get="{% url 'budget:timeline' %}"
+      hx-target="#budget-timeline"
+      hx-push-url="true"
+      hx-trigger="change">
+  <div class="col-auto">
+    <span class="form-label d-block">Horizon</span>
+    <div class="btn-group" role="group" aria-label="Timeline horizon">
+      {% for value in month_choices %}
+      <input type="radio" class="btn-check" name="months" id="months-{{ value }}" value="{{ value }}"
+             {% if value == months %}checked{% endif %} autocomplete="off">
+      <label class="btn btn-outline-primary" for="months-{{ value }}">{{ value }} mo</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col">
+    <span class="form-label d-block">Accounts</span>
+    <div class="d-flex flex-wrap gap-3">
+      {% for account in all_accounts %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="accounts" value="{{ account.id }}"
+               id="tl-account-{{ account.id }}"
+               {% if not selected_account_ids or account.id in selected_account_ids %}checked{% endif %}>
+        <label class="form-check-label" for="tl-account-{{ account.id }}">{{ account.name }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</form>
+
+<div class="d-flex flex-wrap gap-3 mb-3 small text-muted">
+  <span><span class="timeline-legend-dot timeline-stop-income"></span> Income</span>
+  <span><span class="timeline-legend-dot timeline-stop-outgoing"></span> Outgoing / one-off</span>
+  <span><span class="timeline-legend-dot timeline-stop-transfer"></span> Transfer</span>
+</div>
+
+<div id="budget-timeline">
+  {% include "budget/_timeline.html" %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var container = document.getElementById("budget-timeline");
+  if (!container) return;
+
+  function pointFor(svg, event) {
+    var pt = svg.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+
+  function balanceAt(lane, x) {
+    var script = document.getElementById(lane.dataset.hoverId);
+    if (!script) return null;
+    var points = JSON.parse(script.textContent);
+    var current = null;
+    for (var i = 0; i < points.length; i++) {
+      if (points[i].x > x) break;
+      current = points[i];
+    }
+    return current;
+  }
+
+  function reset() {
+    container.querySelectorAll(".timeline-crosshair").forEach(function (line) {
+      line.style.display = "none";
+    });
+    container.querySelectorAll(".timeline-lane").forEach(function (lane) {
+      lane.classList.remove("is-hovering");
+      var label = lane.querySelector(".timeline-lane-balance");
+      if (label) label.textContent = "Net " + lane.dataset.currency + " " + lane.dataset.endBalance;
+    });
+  }
+
+  container.addEventListener("mousemove", function (event) {
+    var svg = event.target.closest(".timeline-svg");
+    if (!svg) return;
+    var loc = pointFor(svg, event);
+
+    var crosshair = svg.querySelector(".timeline-crosshair");
+    if (crosshair) {
+      crosshair.setAttribute("x1", loc.x);
+      crosshair.setAttribute("x2", loc.x);
+      crosshair.style.display = "";
+    }
+
+    svg.querySelectorAll(".timeline-lane").forEach(function (lane) {
+      var point = balanceAt(lane, loc.x);
+      var label = lane.querySelector(".timeline-lane-balance");
+      if (!label) return;
+      lane.classList.add("is-hovering");
+      label.textContent = point
+        ? "As of " + point.date + ": " + lane.dataset.currency + " " + point.balance
+        : "Before first entry: " + lane.dataset.currency + " 0.00";
+    });
+  });
+
+  container.addEventListener("mouseleave", reset);
+})();
+</script>
+{% endblock %}

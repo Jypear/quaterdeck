@@ -240,6 +240,111 @@ h1, h2, h3, h4, h5, h6,
   margin-top: 0.25rem;
 }
 
+/* Budget timeline — one horizontal "bus stop" lane per account, coloured
+   stops for income/outgoing/transfer, with cross-lane connectors for
+   transfers. Plain inline SVG, same approach as the helm gauge above. */
+.timeline-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timeline-svg {
+  width: 100%;
+  min-width: 700px;
+  height: auto;
+  display: block;
+}
+
+.timeline-axis-line {
+  stroke: rgba(var(--bs-body-color-rgb), 0.08);
+  stroke-width: 1;
+}
+
+.timeline-crosshair {
+  stroke: var(--qd-brass);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.timeline-lane.is-hovering .timeline-lane-balance {
+  fill: var(--qd-brass);
+  font-weight: 600;
+}
+
+.timeline-axis-label {
+  font-size: 11px;
+  fill: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.timeline-lane-line {
+  stroke: rgba(var(--bs-body-color-rgb), 0.2);
+  stroke-width: 2;
+}
+
+.timeline-lane-label {
+  font-family: var(--qd-font-display);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--bs-emphasis-color);
+}
+
+.timeline-lane-balance {
+  font-size: 11px;
+  fill: var(--bs-secondary-color);
+  transition: fill 0.15s ease;
+}
+
+.timeline-connector {
+  stroke: var(--bs-info);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.timeline-stop circle {
+  stroke: var(--bs-body-bg);
+  stroke-width: 1.5;
+}
+
+.timeline-stop-label {
+  font-size: 10px;
+  fill: var(--bs-secondary-color);
+  text-anchor: middle;
+}
+
+.timeline-stop-income circle {
+  fill: var(--qd-verdigris);
+}
+
+.timeline-stop-outgoing circle {
+  fill: var(--bs-danger);
+}
+
+.timeline-stop-transfer circle {
+  fill: var(--bs-info);
+}
+
+.timeline-legend-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+}
+
+.timeline-legend-dot.timeline-stop-income {
+  background-color: var(--qd-verdigris);
+}
+
+.timeline-legend-dot.timeline-stop-outgoing {
+  background-color: var(--bs-danger);
+}
+
+.timeline-legend-dot.timeline-stop-transfer {
+  background-color: var(--bs-info);
+}
+
 /* Visible keyboard focus, site-wide. Many Bootstrap components (.nav-link,
    .btn, .dropdown-item, .page-link...) set their own hardcoded blue
    focus-visible box-shadow at higher specificity than a plain element
