@@ -27,6 +27,9 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/quaterdeck.css' %}">
 
+  {# Fades htmx's innerHTML swaps via the View Transitions API instead of an instant snap. #}
+  <meta name="htmx-config" content='{"globalViewTransitions": true}'>
+
   {% block extra_css %}{% endblock %}
 </head>
 <body>

@@ -277,6 +277,67 @@ textarea:focus-visible,
   opacity: 1;
 }
 
+/* Cross-document page transitions — cross-fades full navigations (and, via
+   the htmx-config meta tag in base.html, htmx's innerHTML swaps too)
+   instead of an instant snap. Pure CSS; browsers without support (e.g.
+   Firefox) just keep today's instant navigation. */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: qd-fade-out 160ms ease both;
+}
+
+::view-transition-new(root) {
+  animation: qd-rise-in 220ms ease both;
+}
+
+@keyframes qd-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes qd-rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* Keep the navbar out of the root cross-fade so it reads as a stable app
+   shell rather than part of the page being replaced. */
+.navbar-quaterdeck {
+  view-transition-name: qd-nav;
+}
+
+/* Fallback entrance for browsers without the View Transitions API — they
+   never get the qd-rise-in above, so give main content its own gentle
+   fade/rise on load. */
+@supports not (view-transition-name: none) {
+  main {
+    animation: qd-rise-in 220ms ease both;
+  }
+}
+
+/* Micro-interactions — smooth, subtle hover/press feedback on interactive
+   surfaces only (plain non-link cards get a shadow raise, not a lift). */
+.card,
+.list-group-item-action,
+.btn {
+  transition: transform 0.12s ease, box-shadow 0.18s ease;
+}
+
+a.card:hover,
+.list-group-item-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(var(--qd-navy-rgb), 0.12);
+}
+
+.card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(var(--qd-navy-rgb), 0.12);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -285,5 +346,10 @@ textarea:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
   }
 }
