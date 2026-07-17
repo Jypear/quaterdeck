@@ -18,14 +18,49 @@ from django.db import models
 
 
 class FrequencyMixin(models.Model):
-    """Abstract mixin providing the shared `frequency` field."""
+    """Abstract mixin providing the shared `frequency` field and the actual
+    payment-date scheduling fields (day-of-month/weekday, weekend adjustment,
+    and weekly interval/anchor for fortnightly-or-longer schedules).
+
+    These fields drive display and calendar placement only — budget totals
+    are still computed purely from `frequency` (see `services.normalise`).
+    """
 
     class Frequency(models.TextChoices):
         WEEKLY = "weekly", "Weekly"
         MONTHLY = "monthly", "Monthly"
         YEARLY = "yearly", "Yearly"
 
+    class WeekendAdjust(models.TextChoices):
+        BEFORE = "before", "Move to Friday before"
+        AFTER = "after", "Move to Monday after"
+
     frequency = models.CharField(max_length=10, choices=Frequency, default=Frequency.MONTHLY)
+    recurring_day = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Day of month (1-31) for monthly/yearly; day of week (1=Mon...7=Sun) for "
+            "weekly. Blank = unscheduled (won't appear on the calendar)."
+        ),
+    )
+    weekend_adjust = models.CharField(
+        max_length=6,
+        choices=WeekendAdjust,
+        blank=True,
+        help_text="Monthly/yearly only: shift the day if it lands on a weekend. Blank = leave it on the weekend.",
+    )
+    week_interval = models.PositiveSmallIntegerField(
+        default=1,
+        null=True,
+        blank=True,
+        help_text="Weekly only: every N weeks (2 = fortnightly). Blank behaves as 1 (every week).",
+    )
+    week_anchor = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Weekly only, needed when interval > 1: a date the payment occurs on, to anchor which weeks.",
+    )
 
     class Meta:
         abstract = True

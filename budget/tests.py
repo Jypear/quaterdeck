@@ -27,6 +27,7 @@ from budget.services import (
     normalise,
     periods_between,
     pot_progress,
+    scheduled_dates,
     to_display,
 )
 from budget.views import _requested_mode
@@ -94,6 +95,86 @@ class ModeOverrideWiringTests(TestCase):
 
         stored_mode_period = active_period(settings.budget_mode, settings.budget_start_day, today=date(2026, 7, 8))
         assert stored_mode_period != period
+
+
+class ScheduledDatesTests(TestCase):
+    """`recurring_day` + `weekend_adjust` + weekly interval/anchor scheduling."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+
+    def test_monthly_weekend_adjust_before_after_and_blank(self) -> None:
+        # 2026-09-05 is a Saturday.
+        window = (date(2026, 9, 1), date(2026, 10, 1))
+
+        before = Outgoing.objects.create(
+            name="Mortgage",
+            amount=Decimal("1000"),
+            category=self.category,
+            account=self.account,
+            frequency="monthly",
+            recurring_day=5,
+            weekend_adjust="before",
+        )
+        assert scheduled_dates(before, *window) == [date(2026, 9, 4)]
+
+        after = Outgoing.objects.create(
+            name="Mortgage",
+            amount=Decimal("1000"),
+            category=self.category,
+            account=self.account,
+            frequency="monthly",
+            recurring_day=5,
+            weekend_adjust="after",
+        )
+        assert scheduled_dates(after, *window) == [date(2026, 9, 7)]
+
+        unadjusted = Outgoing.objects.create(
+            name="Mortgage",
+            amount=Decimal("1000"),
+            category=self.category,
+            account=self.account,
+            frequency="monthly",
+            recurring_day=5,
+        )
+        assert scheduled_dates(unadjusted, *window) == [date(2026, 9, 5)]
+
+    def test_salary_moves_to_friday_before_weekend(self) -> None:
+        # 2026-02-28 is a Saturday.
+        salary = IncomeStream.objects.create(
+            name="Salary",
+            amount=Decimal("3000"),
+            account=self.account,
+            frequency="monthly",
+            recurring_day=28,
+            weekend_adjust="before",
+        )
+        dates = scheduled_dates(salary, date(2026, 2, 1), date(2026, 3, 1))
+        assert dates == [date(2026, 2, 27)]
+
+    def test_recurring_day_clamps_to_short_month(self) -> None:
+        salary = IncomeStream.objects.create(
+            name="Salary", amount=Decimal("3000"), account=self.account, frequency="monthly", recurring_day=31
+        )
+        # Feb 2026 has 28 days, so day 31 clamps to the 28th.
+        dates = scheduled_dates(salary, date(2026, 2, 1), date(2026, 3, 1))
+        assert dates == [date(2026, 2, 28)]
+
+    def test_fortnightly_weekly_interval_only_matches_alternating_weeks(self) -> None:
+        # 2026-07-06/13/20/27 are all Mondays; anchor on the 6th with interval=2
+        # should only match the 6th and 20th within July.
+        wages = IncomeStream.objects.create(
+            name="Wages",
+            amount=Decimal("500"),
+            account=self.account,
+            frequency="weekly",
+            recurring_day=1,
+            week_interval=2,
+            week_anchor=date(2026, 7, 6),
+        )
+        dates = scheduled_dates(wages, date(2026, 7, 1), date(2026, 8, 1))
+        assert dates == [date(2026, 7, 6), date(2026, 7, 20)]
 
 
 class PeriodsBetweenTests(TestCase):

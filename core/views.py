@@ -107,11 +107,12 @@ class CalendarDay:
 
 class CalendarView(TemplateView):
     """Month grid aggregating task due dates, one-off due dates, pot target
-    dates, and budget period-start markers.
+    dates, recurring income/outgoing/transfer pay dates, and budget
+    period-start markers.
 
-    Recurring income/outgoings/transfers have no per-entry date field (only a
-    `frequency`), so they can't be placed on a specific day — deferred; see
-    the "Budget period" marker below as the stand-in.
+    Recurring items are only plotted when they have `recurring_day` set (see
+    FrequencyMixin); unscheduled ones fall back to the "Budget period" marker
+    below as the stand-in.
     """
 
     template_name = "core/calendar.html"
@@ -128,9 +129,9 @@ class CalendarView(TemplateView):
         events = month_events(range_start, range_end)
 
         settings = Settings.get()
-        # ponytail: budget period markers only — no per-entry date on recurring
-        # income/outgoings/transfers to plot individually. Add if a per-entry
-        # date field is ever introduced.
+        # Recurring items with a scheduled `recurring_day` are plotted by
+        # month_events() above; this marker covers the budget period boundary
+        # itself (and stands in for any recurring item left unscheduled).
         overview_url = reverse("budget:overview")
         day = range_start
         while day < range_end:

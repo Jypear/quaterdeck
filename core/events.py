@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 
 from django.urls import reverse
 
-from budget.models import OneOffOutgoing, Pot
+from budget.models import IncomeStream, OneOffOutgoing, Outgoing, Pot, Transfer
+from budget.services import scheduled_dates
 from tasks.models import Task
 
 if TYPE_CHECKING:
@@ -60,4 +61,35 @@ def month_events(start: date, end: date) -> dict[date, list[CalEvent]]:
             CalEvent(f"{pot.name} target", reverse("budget:pot_edit", args=[pot.pk]), "bg-success")
         )
 
+    scheduled = {"recurring_day__isnull": False}
+    _add_recurring_events(
+        events, IncomeStream.objects.filter(**scheduled), "income_edit", "bg-success", "+£", start, end
+    )
+    _add_recurring_events(events, Outgoing.objects.filter(**scheduled), "outgoing_edit", "bg-danger", "£", start, end)
+    _add_recurring_events(
+        events, Transfer.objects.filter(**scheduled), "transfer_edit", "bg-info text-dark", "£", start, end
+    )
+
     return events
+
+
+def _add_recurring_events(
+    events: dict[date, list[CalEvent]],
+    entries: Iterable[IncomeStream | Outgoing | Transfer],
+    url_name: str,
+    css: str,
+    amount_prefix: str,
+    start: date,
+    end: date,
+) -> None:
+    """Plot recurring income/outgoing/transfer entries on their scheduled pay
+    date(s), for entries that have `recurring_day` set (see FrequencyMixin)."""
+    for entry in entries:
+        for day in scheduled_dates(entry, start, end):
+            events[day].append(
+                CalEvent(
+                    f"{entry.name} {amount_prefix}{entry.amount}",
+                    reverse(f"budget:{url_name}", args=[entry.pk]),
+                    css,
+                )
+            )

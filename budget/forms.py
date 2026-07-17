@@ -33,22 +33,68 @@ class AccountForm(_BootstrapModelForm):
         fields: ClassVar[list[str]] = ["name", "account_type", "is_active"]
 
 
-class IncomeStreamForm(_BootstrapModelForm):
+_RECURRING_SCHEDULE_FIELDS: list[str] = ["recurring_day", "weekend_adjust", "week_interval", "week_anchor"]
+_RECURRING_SCHEDULE_WIDGETS: dict[str, Any] = {
+    # x-model drives the weekly/monthly x-show toggles in templates/budget/_form.html.
+    "frequency": forms.Select(attrs={"x-model": "frequency"}),
+    "week_anchor": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+}
+
+
+class _RecurringScheduleCleanMixin(forms.ModelForm):
+    """Shared validation for the FrequencyMixin scheduling fields."""
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        frequency = cleaned_data.get("frequency")
+        recurring_day = cleaned_data.get("recurring_day")
+        week_interval = cleaned_data.get("week_interval") or 1
+        week_anchor = cleaned_data.get("week_anchor")
+
+        if recurring_day is not None:
+            max_day = 7 if frequency == "weekly" else 31
+            if not (1 <= recurring_day <= max_day):
+                self.add_error("recurring_day", f"Must be between 1 and {max_day} for {frequency} frequency.")
+
+        if week_interval > 1 and week_anchor is None:
+            self.add_error("week_anchor", "Required when the interval is more than 1 week.")
+
+        return cleaned_data
+
+
+class IncomeStreamForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
     class Meta:
         model = IncomeStream
-        fields: ClassVar[list[str]] = ["name", "amount", "frequency", "account"]
+        fields: ClassVar[list[str]] = ["name", "amount", "frequency", "account", *_RECURRING_SCHEDULE_FIELDS]
+        widgets: ClassVar[dict[str, Any]] = _RECURRING_SCHEDULE_WIDGETS
 
 
-class OutgoingForm(_BootstrapModelForm):
+class OutgoingForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
     class Meta:
         model = Outgoing
-        fields: ClassVar[list[str]] = ["name", "amount", "frequency", "category", "account"]
+        fields: ClassVar[list[str]] = [
+            "name",
+            "amount",
+            "frequency",
+            "category",
+            "account",
+            *_RECURRING_SCHEDULE_FIELDS,
+        ]
+        widgets: ClassVar[dict[str, Any]] = _RECURRING_SCHEDULE_WIDGETS
 
 
-class TransferForm(_BootstrapModelForm):
+class TransferForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
     class Meta:
         model = Transfer
-        fields: ClassVar[list[str]] = ["name", "amount", "frequency", "from_account", "to_account"]
+        fields: ClassVar[list[str]] = [
+            "name",
+            "amount",
+            "frequency",
+            "from_account",
+            "to_account",
+            *_RECURRING_SCHEDULE_FIELDS,
+        ]
+        widgets: ClassVar[dict[str, Any]] = _RECURRING_SCHEDULE_WIDGETS
 
 
 class OneOffOutgoingForm(_BootstrapModelForm):

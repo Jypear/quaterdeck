@@ -16,11 +16,13 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
-from budget.models import Account, OutgoingVariance, Pot, PotEntry
+from budget.models import Account, IncomeStream, Outgoing, OutgoingVariance, Pot, PotEntry, Transfer
 from core.models import Settings
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    RecurringEntry = IncomeStream | Outgoing | Transfer
 
 TWO_PLACES = Decimal("0.01")
 ZERO = Decimal("0")
@@ -68,6 +70,58 @@ def _monthly_anchor(year: int, month: int, day: int) -> date:
 
     last_day = calendar.monthrange(year, month)[1]
     return date(year, month, min(day, last_day))
+
+
+def _weekend_adjusted(d: date, adjust: str) -> date:
+    """Shift `d` off a weekend per `adjust` ("before"/"after"/""). No-op on weekdays."""
+    if d.isoweekday() < 6 or not adjust:
+        return d
+    if adjust == "before":
+        return d - timedelta(days=d.isoweekday() - 5)  # Sat(6)->Fri, Sun(7)->Fri
+    return d + timedelta(days=8 - d.isoweekday())  # Sat(6)->Mon, Sun(7)->Mon
+
+
+def scheduled_dates(entry: RecurringEntry, start: date, end: date) -> list[date]:
+    """Actual payment dates for a recurring entry (anything with `FrequencyMixin`
+    fields) within the half-open [start, end) range. Empty if unscheduled.
+
+    Display/calendar placement only — does not feed budget totals.
+    """
+    if entry.recurring_day is None:
+        return []
+
+    if entry.frequency == "weekly":
+        return [d for d in _daterange(start, end) if _is_weekly_occurrence(d, entry)]
+
+    if entry.frequency == "yearly":
+        # ponytail: yearly has no month field to place a day-of-month within
+        # the year, so it can't be scheduled yet. Add `recurring_month` if needed.
+        return []
+
+    # monthly
+    dates = []
+    year, month = start.year, start.month
+    while date(year, month, 1) < end:
+        anchor = _weekend_adjusted(_monthly_anchor(year, month, entry.recurring_day), entry.weekend_adjust)
+        if start <= anchor < end:
+            dates.append(anchor)
+        year, month = _shift_month(year, month, 1)
+    return dates
+
+
+def _is_weekly_occurrence(d: date, entry: RecurringEntry) -> bool:
+    if d.isoweekday() != entry.recurring_day:
+        return False
+    if not entry.week_interval or entry.week_interval <= 1 or entry.week_anchor is None:
+        return True
+    return (d - entry.week_anchor).days % (7 * entry.week_interval) == 0
+
+
+def _daterange(start: date, end: date) -> Iterable[date]:
+    d = start
+    while d < end:
+        yield d
+        d += timedelta(days=1)
 
 
 def active_period(mode: str, start_day: int, today: date | None = None) -> Period:

@@ -1,0 +1,67 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link "Quaterdeck" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e9]:
+        - list [ref=e10]:
+          - listitem [ref=e11]:
+            - link "Dashboard" [ref=e12] [cursor=pointer]:
+              - /url: /
+          - listitem [ref=e13]:
+            - link "Budget" [ref=e14] [cursor=pointer]:
+              - /url: /budget/
+          - listitem [ref=e15]:
+            - link "Tasks" [ref=e16] [cursor=pointer]:
+              - /url: /tasks/
+          - listitem [ref=e17]:
+            - link "Calendar" [ref=e18] [cursor=pointer]:
+              - /url: /calendar/
+          - listitem [ref=e19]:
+            - link "Projects" [ref=e20] [cursor=pointer]:
+              - /url: /projects/
+          - listitem [ref=e21]:
+            - link "Notes" [ref=e22] [cursor=pointer]:
+              - /url: /notes/
+        - list [ref=e23]:
+          - listitem [ref=e24]:
+            - 'button "Theme: Auto (system) — click for Light" [ref=e25] [cursor=pointer]'
+          - listitem [ref=e29]:
+            - button "Settings" [ref=e30] [cursor=pointer]
+  - main [ref=e31]:
+    - heading "Add outgoing" [level=1] [ref=e32]
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]: Name
+        - textbox "Name" [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]: Amount
+        - spinbutton "Amount" [ref=e39]
+      - generic [ref=e40]:
+        - generic [ref=e41]: Frequency
+        - combobox "Frequency" [ref=e42]:
+          - option "Weekly"
+          - option "Monthly"
+          - option "Yearly" [selected]
+      - generic [ref=e43]:
+        - generic [ref=e44]: Category
+        - combobox "Category" [ref=e45]:
+          - option "---------" [selected]
+          - option "House"
+      - generic [ref=e46]:
+        - generic [ref=e47]: Account
+        - combobox "Account" [ref=e48]:
+          - option "---------" [selected]
+          - option "Josh Income"
+      - generic [ref=e49]:
+        - generic [ref=e50]: Recurring day
+        - spinbutton "Recurring day" [ref=e51]
+      - generic [ref=e52]:
+        - generic [ref=e53]: Weekend adjust
+        - combobox "Weekend adjust" [ref=e54]:
+          - option "---------" [selected]
+          - option "Move to Friday before"
+          - option "Move to Monday after"
+      - button "Save" [ref=e55] [cursor=pointer]
+      - link "Cancel" [ref=e56] [cursor=pointer]:
+        - /url: /budget/accounts/
