@@ -55,7 +55,9 @@ class OneOffOutgoingForm(_BootstrapModelForm):
     class Meta:
         model = OneOffOutgoing
         fields: ClassVar[list[str]] = ["name", "amount", "due_date", "account", "linked_pot"]
-        widgets: ClassVar[dict[str, Any]] = {"due_date": forms.DateInput(attrs={"type": "date"})}
+        widgets: ClassVar[dict[str, Any]] = {
+            "due_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
 
 
 class OutgoingCategoryForm(_BootstrapModelForm):
@@ -75,7 +77,9 @@ class PotForm(_BootstrapModelForm):
             "linked_project",
             "linked_one_off",
         ]
-        widgets: ClassVar[dict[str, Any]] = {"target_date": forms.DateInput(attrs={"type": "date"})}
+        widgets: ClassVar[dict[str, Any]] = {
+            "target_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
 
 
 class OutgoingVarianceForm(_BootstrapModelForm):

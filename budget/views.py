@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse_lazy
+from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
@@ -235,6 +236,19 @@ class _AccountScopedCreateMixin:
         return initial
 
 
+class _DatePrefillMixin:
+    """Pre-fills a date field from `?date=YYYY-MM-DD`, e.g. from the calendar's "+"."""
+
+    date_field = ""
+
+    def get_initial(self) -> dict[str, Any]:
+        initial = super().get_initial()
+        date = parse_date(self.request.GET.get("date") or "")
+        if date:
+            initial[self.date_field] = date
+        return initial
+
+
 class _BudgetDeleteView(DeleteView):
     """Shared confirm-delete template + cancel_url for delete views."""
 
@@ -311,10 +325,11 @@ class TransferDeleteView(_BudgetDeleteView):
     model = Transfer
 
 
-class OneOffOutgoingCreateView(_AccountScopedCreateMixin, _BudgetFormMixin, CreateView):
+class OneOffOutgoingCreateView(_DatePrefillMixin, _AccountScopedCreateMixin, _BudgetFormMixin, CreateView):
     model = OneOffOutgoing
     form_class = OneOffOutgoingForm
     title = "Add one-off outgoing"
+    date_field = "due_date"
 
 
 class OneOffOutgoingUpdateView(_BudgetFormMixin, UpdateView):
@@ -343,10 +358,11 @@ class OutgoingCategoryDeleteView(_BudgetDeleteView):
     model = OutgoingCategory
 
 
-class PotCreateView(_PotFormMixin, CreateView):
+class PotCreateView(_DatePrefillMixin, _PotFormMixin, CreateView):
     model = Pot
     form_class = PotForm
     title = "Add pot"
+    date_field = "target_date"
 
     def get_initial(self) -> dict[str, Any]:
         """Pre-selects `linked_project` from `?linked_project=<id>` on the

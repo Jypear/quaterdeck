@@ -21,4 +21,6 @@ class TaskForm(BootstrapModelForm):
             "linked_project",
             "budget_amount",
         ]
-        widgets: ClassVar[dict[str, Any]] = {"due_date": forms.DateInput(attrs={"type": "date"})}
+        widgets: ClassVar[dict[str, Any]] = {
+            "due_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }

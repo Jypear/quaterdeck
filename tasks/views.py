@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse_lazy
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
@@ -64,6 +65,14 @@ class TaskCreateView(_TaskFormMixin, CreateView):
     model = Task
     form_class = TaskForm
     title = "Add task"
+
+    def get_initial(self) -> dict[str, Any]:
+        """Pre-fills `due_date` from `?date=YYYY-MM-DD`, e.g. from the calendar's "+"."""
+        initial = super().get_initial()
+        date = parse_date(self.request.GET.get("date") or "")
+        if date:
+            initial["due_date"] = date
+        return initial
 
 
 class TaskUpdateView(_TaskFormMixin, UpdateView):

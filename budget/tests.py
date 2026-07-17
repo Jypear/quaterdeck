@@ -392,3 +392,26 @@ class NewCrudSmokeTests(TestCase):
         )
         assert response.status_code == 302
         assert Pot.objects.filter(name="Holiday 2026").exists()
+
+
+class DatePrefillTests(TestCase):
+    """Regression: the calendar's "+" links pass `?date=` to pre-fill due_date/target_date."""
+
+    def test_oneoff_valid_date_prefills_due_date(self) -> None:
+        response = self.client.get(reverse("budget:oneoff_add"), {"date": "2026-07-15"})
+        assert response.context["form"].initial["due_date"] == date(2026, 7, 15)
+        # The rendered <input type="date"> needs an ISO value or the browser
+        # silently blanks it, regardless of locale (en-gb formats DD/MM/YYYY).
+        assert 'value="2026-07-15"' in response.content.decode()
+
+    def test_pot_valid_date_prefills_target_date(self) -> None:
+        response = self.client.get(reverse("budget:pot_add"), {"date": "2026-07-15"})
+        assert response.context["form"].initial["target_date"] == date(2026, 7, 15)
+        assert 'value="2026-07-15"' in response.content.decode()
+
+    def test_missing_or_invalid_date_leaves_it_unset(self) -> None:
+        response = self.client.get(reverse("budget:oneoff_add"))
+        assert "due_date" not in response.context["form"].initial
+
+        response = self.client.get(reverse("budget:oneoff_add"), {"date": "nope"})
+        assert "due_date" not in response.context["form"].initial
