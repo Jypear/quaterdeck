@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party
     "rest_framework",
+    "django_prometheus",
     # Local
     "core",
     "budget",
@@ -42,6 +43,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Must be first so it starts the request timer before anything else runs.
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -52,6 +55,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Quaterdeck: gates the whole app when REQUIRE_LOGIN is enabled
     "core.middleware.RequireLoginMiddleware",
+    # Must be last so it wraps (and times) the fully-processed response.
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "quaterdeck.urls"
@@ -80,7 +85,7 @@ WSGI_APPLICATION = "quaterdeck.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django_prometheus.db.backends.postgresql",
         "NAME": os.environ.get("DB_NAME", "quaterdeck"),
         "USER": os.environ.get("DB_USER", "quaterdeck"),
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),

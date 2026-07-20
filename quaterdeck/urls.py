@@ -4,8 +4,11 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
+from core.metrics import metrics_view
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("metrics", metrics_view, name="metrics"),
     # Auth
     path(
         "auth/login/",

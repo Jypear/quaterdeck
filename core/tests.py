@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -12,6 +14,21 @@ from budget.models import Account, OneOffOutgoing, Pot
 from core.events import month_events
 from core.models import Settings
 from tasks.models import Task
+
+
+class MetricsViewTests(TestCase):
+    def test_metrics_are_exposed_without_a_token(self) -> None:
+        response = self.client.get(reverse("metrics"))
+        assert response.status_code == 200
+        assert b"django_http_requests" in response.content
+
+    def test_metrics_require_bearer_token_when_configured(self) -> None:
+        with patch.dict(os.environ, {"METRICS_TOKEN": "secret"}):
+            unauthenticated = self.client.get(reverse("metrics"))
+            assert unauthenticated.status_code == 401
+
+            authenticated = self.client.get(reverse("metrics"), HTTP_AUTHORIZATION="Bearer secret")
+            assert authenticated.status_code == 200
 
 
 class MonthEventsTests(TestCase):

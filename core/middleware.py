@@ -18,6 +18,7 @@ _PUBLIC_PREFIXES = (
     "/admin/",
     "/static/",
     "/webhooks/inbound/",  # authenticated by HMAC signature instead of a session
+    "/metrics",  # scraped by Prometheus without a session; gated by METRICS_TOKEN instead
 )
 
 
