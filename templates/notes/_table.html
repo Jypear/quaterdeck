@@ -1,0 +1,34 @@
+{% url 'notes:list' as list_url %}
+{% if notes %}
+<div class="table-responsive">
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      {% include "_sort_th.html" with col="title" label="Title" list_url=list_url target="#note-results" filters_form="#note-filters" %}
+      <th scope="col">Project</th>
+      <th scope="col">Pot</th>
+      {% include "_sort_th.html" with col="updated_at" label="Updated" list_url=list_url target="#note-results" filters_form="#note-filters" %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for note in notes %}
+    <tr>
+      <td>
+        <a href="{% url 'notes:detail' note.pk %}">{{ note.title }}</a>
+        {% if note.body %}<div class="text-muted small">{{ note.body|truncatewords:12 }}</div>{% endif %}
+      </td>
+      <td>
+        {% if note.linked_project %}
+        <a href="{{ note.linked_project.get_absolute_url }}" class="link-secondary">{{ note.linked_project.name }}</a>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ note.linked_pot.name|default:"—" }}</td>
+      <td class="text-nowrap">{{ note.updated_at|date:"d M Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No notes match — try clearing a filter, or capture your first thought.</p>
+{% endif %}

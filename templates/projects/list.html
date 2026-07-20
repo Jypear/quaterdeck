@@ -4,19 +4,20 @@
 {% block content %}
 {% url 'projects:project_add' as project_add_url %}
 {% include "_page_header.html" with title="Projects" action_url=project_add_url action_label="+ Add project" %}
-{% if projects %}
-<ul class="list-group">
-  {% for project in projects %}
-  <li class="list-group-item d-flex justify-content-between align-items-center">
-    <a href="{% url 'projects:detail' project.pk %}">{{ project.name }}</a>
-    <div class="d-flex align-items-center gap-2">
-      <a href="{% url 'projects:project_edit' project.pk %}" class="link-secondary small">Edit</a>
-      <a href="{% url 'projects:project_delete' project.pk %}" class="link-danger small">Delete</a>
-    </div>
-  </li>
-  {% endfor %}
-</ul>
-{% else %}
-<p class="text-muted">No projects yet — group related work together.</p>
-{% endif %}
+
+<form id="project-filters" class="row g-2 align-items-end mb-3"
+      hx-get="{% url 'projects:list' %}"
+      hx-target="#project-results"
+      hx-push-url="true"
+      hx-trigger="change, keyup delay:300ms from:[name=q]">
+  <div class="col-sm-6 col-md-4">
+    <label class="form-label small mb-1" for="project-q">Search</label>
+    <input type="search" class="form-control form-control-sm" id="project-q" name="q" value="{{ q }}"
+           placeholder="Name or description…">
+  </div>
+</form>
+
+<div id="project-results">
+  {% include "projects/_table.html" %}
+</div>
 {% endblock %}

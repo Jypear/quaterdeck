@@ -1,0 +1,34 @@
+{% url 'projects:list' as list_url %}
+{% if projects %}
+<div class="table-responsive">
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      {% include "_sort_th.html" with col="name" label="Name" list_url=list_url target="#project-results" filters_form="#project-filters" %}
+      {% include "_sort_th.html" with col="budget" label="Budget" list_url=list_url target="#project-results" filters_form="#project-filters" %}
+      <th scope="col">Tasks</th>
+      <th scope="col">Notes</th>
+      <th scope="col">Pots</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for project in projects %}
+    <tr>
+      <td><a href="{% url 'projects:detail' project.pk %}">{{ project.name }}</a></td>
+      <td>{{ project.budget|default:"—" }}</td>
+      <td>{{ project.task_count }}</td>
+      <td>{{ project.note_count }}</td>
+      <td>{{ project.pot_count }}</td>
+      <td class="text-nowrap">
+        <a href="{% url 'projects:project_edit' project.pk %}" class="link-secondary small">Edit</a>
+        <a href="{% url 'projects:project_delete' project.pk %}" class="link-danger small ms-2">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No projects match — try clearing a filter, or group related work together.</p>
+{% endif %}

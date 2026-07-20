@@ -10,22 +10,43 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
+from django.db.models import Count, Q
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
 
 from budget.services import active_period, pot_progress
 from core.models import Settings
+from core.tables import apply_sort, is_partial
 from projects.forms import ProjectForm
 from projects.models import Project
 
 if TYPE_CHECKING:
     from django.http import HttpResponse
 
+_SORT_FIELDS = {"name": "name", "budget": "budget"}
 
-class ProjectListView(ListView):
-    model = Project
-    template_name = "projects/list.html"
-    context_object_name = "projects"
+
+class ProjectListView(TemplateView):
+    def get_template_names(self) -> list[str]:
+        return ["projects/_table.html"] if is_partial(self.request) else ["projects/list.html"]
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET
+        projects = Project.objects.annotate(
+            task_count=Count("tasks", distinct=True),
+            note_count=Count("notes", distinct=True),
+            pot_count=Count("pots", distinct=True),
+        )
+
+        q = params.get("q", "").strip()
+        if q:
+            projects = projects.filter(Q(name__icontains=q) | Q(description__icontains=q))
+
+        projects, sort_col, sort_dir = apply_sort(params, projects, _SORT_FIELDS, default="name")
+
+        context.update({"projects": projects, "q": q, "sort_col": sort_col, "sort_dir": sort_dir})
+        return context
 
 
 class ProjectDetailView(DetailView):

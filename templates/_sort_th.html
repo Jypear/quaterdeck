@@ -1,0 +1,16 @@
+{% comment %}
+Sortable table header cell. Clicking re-`hx-get`s the list URL with `?sort=`
+flipped, including whatever filters are active. Usage inside a `<tr>`:
+
+{% include "_sort_th.html" with col="due_date" label="Due" sort_col=sort_col sort_dir=sort_dir list_url=list_url target="#task-results" filters_form="#task-filters" %}
+{% endcomment %}
+<th scope="col">
+  <a href="#" class="text-decoration-none text-body-emphasis"
+     hx-get="{{ list_url }}"
+     hx-target="{{ target }}"
+     hx-push-url="true"
+     hx-include="{{ filters_form }}"
+     hx-vals='{"sort": "{{ col }}", "dir": "{% if sort_col == col and sort_dir == "asc" %}desc{% else %}asc{% endif %}"}'>
+    {{ label }}{% if sort_col == col %}{% if sort_dir == "asc" %} ▲{% else %} ▼{% endif %}{% endif %}
+  </a>
+</th>

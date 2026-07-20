@@ -1,0 +1,52 @@
+{% url 'tasks:list' as list_url %}
+{% if tasks %}
+<div class="table-responsive">
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th scope="col"></th>
+      {% include "_sort_th.html" with col="title" label="Title" list_url=list_url target="#task-results" filters_form="#task-filters" %}
+      {% include "_sort_th.html" with col="due_date" label="Due" list_url=list_url target="#task-results" filters_form="#task-filters" %}
+      {% include "_sort_th.html" with col="priority" label="Priority" list_url=list_url target="#task-results" filters_form="#task-filters" %}
+      {% include "_sort_th.html" with col="status" label="Status" list_url=list_url target="#task-results" filters_form="#task-filters" %}
+      <th scope="col">Project</th>
+      <th scope="col">Budget</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+    <tr class="{% if task.status == 'done' %}text-muted{% endif %}">
+      <td>
+        <form hx-post="{% url 'tasks:task_toggle_done' task.pk %}"
+              hx-target="#task-results" hx-swap="innerHTML" hx-include="#task-filters">
+          {% csrf_token %}
+          {% if task.status == 'done' %}
+          <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Reopen">↩</button>
+          {% else %}
+          <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark done">✓</button>
+          {% endif %}
+        </form>
+      </td>
+      <td class="{% if task.status == 'done' %}text-decoration-line-through{% endif %}">{{ task.title }}</td>
+      <td>{{ task.due_date|default:"—" }}</td>
+      <td><span class="badge bg-secondary">{{ task.get_priority_display }}</span></td>
+      <td><span class="badge border text-body-secondary">{{ task.get_status_display }}</span></td>
+      <td>
+        {% if task.linked_project %}
+        <a href="{{ task.linked_project.get_absolute_url }}" class="link-secondary">{{ task.linked_project.name }}</a>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ task.budget_amount|default:"—" }}</td>
+      <td class="text-nowrap">
+        <a href="{% url 'tasks:task_edit' task.pk %}" class="link-secondary small">Edit</a>
+        <a href="{% url 'tasks:task_delete' task.pk %}" class="link-danger small ms-2">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No tasks match — try clearing a filter, or add one to get started.</p>
+{% endif %}

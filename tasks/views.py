@@ -15,30 +15,63 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
+from core.tables import apply_sort, is_partial
+from projects.models import Project
 from tasks.forms import TaskForm
 from tasks.models import Task
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
 
-
-def _is_partial_request(request: HttpRequest) -> bool:
-    return request.headers.get("HX-Request") == "true"
+_SORT_FIELDS = {"title": "title", "due_date": "due_date", "priority": "priority", "status": "status"}
 
 
-def _task_list_context() -> dict[str, Any]:
+def _task_table_context(params: Any) -> dict[str, Any]:
+    """Filtered + sorted task queryset and the filter state, from a GET/POST QueryDict.
+
+    Shared by `TaskListView` and `toggle_done` so the toggle's HTMX re-render
+    preserves whatever filters were active (it `hx-include`s the filter form).
+    """
+    tasks = Task.objects.all()
+
+    q = params.get("q", "").strip()
+    if q:
+        tasks = tasks.filter(title__icontains=q)
+
+    status = params.get("status", "")
+    if status in Task.Status.values:
+        tasks = tasks.filter(status=status)
+
+    priority = params.get("priority", "")
+    if priority in Task.Priority.values:
+        tasks = tasks.filter(priority=priority)
+
+    project_id = params.get("linked_project", "")
+    if project_id.isdigit():
+        tasks = tasks.filter(linked_project_id=int(project_id))
+
+    tasks, sort_col, sort_dir = apply_sort(params, tasks, _SORT_FIELDS, default="due_date")
+
     return {
-        "open_tasks": Task.objects.exclude(status=Task.Status.DONE),
-        "done_tasks": Task.objects.filter(status=Task.Status.DONE),
+        "tasks": tasks,
+        "q": q,
+        "status": status,
+        "priority": priority,
+        "linked_project": project_id,
+        "status_choices": Task.Status.choices,
+        "priority_choices": Task.Priority.choices,
+        "all_projects": Project.objects.all(),
+        "sort_col": sort_col,
+        "sort_dir": sort_dir,
     }
 
 
 class TaskListView(TemplateView):
     def get_template_names(self) -> list[str]:
-        return ["tasks/_list.html"] if _is_partial_request(self.request) else ["tasks/list.html"]
+        return ["tasks/_table.html"] if is_partial(self.request) else ["tasks/list.html"]
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        return {**super().get_context_data(**kwargs), **_task_list_context()}
+        return {**super().get_context_data(**kwargs), **_task_table_context(self.request.GET)}
 
 
 class _TaskFormMixin:
@@ -94,11 +127,13 @@ class TaskDeleteView(DeleteView):
 
 @require_POST
 def toggle_done(request: HttpRequest, pk: int) -> HttpResponse:
-    """Flip a task done<->todo and re-render the list partial.
+    """Flip a task done<->todo and re-render the table partial.
 
-    Mirrors budget.views.log_variance's re-render-in-place pattern.
+    Mirrors budget.views.log_variance's re-render-in-place pattern. The toggle
+    form `hx-include`s the filter form, so `request.POST` carries whatever
+    filters/sort were active — the re-rendered table keeps them applied.
     """
     task = get_object_or_404(Task, pk=pk)
     task.status = Task.Status.TODO if task.status == Task.Status.DONE else Task.Status.DONE
     task.save(update_fields=["status"])
-    return render(request, "tasks/_list.html", _task_list_context())
+    return render(request, "tasks/_table.html", _task_table_context(request.POST))

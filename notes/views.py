@@ -15,15 +15,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
+from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
 
 from ai.providers import NullProvider, get_provider
 from budget.models import OneOffOutgoing, Pot
 from core.models import Settings
+from core.tables import apply_sort, is_partial
 from notes.ai import build_enrich_prompt, build_prompt, parse_actions
 from notes.forms import NoteForm
 from notes.markdown import render_markdown
@@ -34,11 +36,39 @@ from tasks.models import Task
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
+_SORT_FIELDS = {"title": "title", "updated_at": "updated_at", "created_at": "created_at"}
 
-class NoteListView(ListView):
-    model = Note
-    template_name = "notes/list.html"
-    context_object_name = "notes"
+
+class NoteListView(TemplateView):
+    def get_template_names(self) -> list[str]:
+        return ["notes/_table.html"] if is_partial(self.request) else ["notes/list.html"]
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET
+        notes = Note.objects.all()
+
+        q = params.get("q", "").strip()
+        if q:
+            notes = notes.filter(Q(title__icontains=q) | Q(body__icontains=q))
+
+        project_id = params.get("linked_project", "")
+        if project_id.isdigit():
+            notes = notes.filter(linked_project_id=int(project_id))
+
+        notes, sort_col, sort_dir = apply_sort(params, notes, _SORT_FIELDS, default="updated_at")
+
+        context.update(
+            {
+                "notes": notes,
+                "q": q,
+                "linked_project": project_id,
+                "all_projects": Project.objects.all(),
+                "sort_col": sort_col,
+                "sort_dir": sort_dir,
+            }
+        )
+        return context
 
 
 class NoteDetailView(DetailView):

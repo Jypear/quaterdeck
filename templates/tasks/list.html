@@ -4,7 +4,49 @@
 {% block content %}
 {% url 'tasks:task_add' as task_add_url %}
 {% include "_page_header.html" with title="Tasks" action_url=task_add_url action_label="+ Add task" %}
-<div id="task-list">
-  {% include "tasks/_list.html" %}
+
+<form id="task-filters" class="row g-2 align-items-end mb-3"
+      hx-get="{% url 'tasks:list' %}"
+      hx-target="#task-results"
+      hx-push-url="true"
+      hx-trigger="change, keyup delay:300ms from:[name=q]">
+  <div class="col-sm-4 col-md-3">
+    <label class="form-label small mb-1" for="task-q">Search</label>
+    <input type="search" class="form-control form-control-sm" id="task-q" name="q" value="{{ q }}"
+           placeholder="Title…">
+  </div>
+  <div class="col-sm-4 col-md-2">
+    <label class="form-label small mb-1" for="task-status">Status</label>
+    <select class="form-select form-select-sm" id="task-status" name="status">
+      <option value="">All</option>
+      {% for value, label in status_choices %}
+      <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-sm-4 col-md-2">
+    <label class="form-label small mb-1" for="task-priority">Priority</label>
+    <select class="form-select form-select-sm" id="task-priority" name="priority">
+      <option value="">All</option>
+      {% for value, label in priority_choices %}
+      <option value="{{ value }}" {% if value == priority %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-sm-4 col-md-3">
+    <label class="form-label small mb-1" for="task-project">Project</label>
+    <select class="form-select form-select-sm" id="task-project" name="linked_project">
+      <option value="">All</option>
+      {% for project in all_projects %}
+      <option value="{{ project.id }}" {% if linked_project == project.id|stringformat:"s" %}selected{% endif %}>
+        {{ project.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div id="task-results">
+  {% include "tasks/_table.html" %}
 </div>
 {% endblock %}

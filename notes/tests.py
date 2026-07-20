@@ -36,6 +36,34 @@ class NoteCrudTests(TestCase):
         assert not Note.objects.filter(pk=note.pk).exists()
 
 
+class NoteTableFilterTests(TestCase):
+    def setUp(self) -> None:
+        self.project = Project.objects.create(name="Kitchen reno")
+        self.note_a = Note.objects.create(title="Tile ideas", body="Marble or ceramic?", linked_project=self.project)
+        self.note_b = Note.objects.create(title="Plumber quotes", body="Get three quotes")
+
+    def test_search_matches_title_or_body(self) -> None:
+        response = self.client.get(reverse("notes:list"), {"q": "marble"})
+        notes = list(response.context["notes"])
+        assert notes == [self.note_a]
+
+    def test_project_filter_narrows_results(self) -> None:
+        response = self.client.get(reverse("notes:list"), {"linked_project": self.project.pk})
+        notes = list(response.context["notes"])
+        assert notes == [self.note_a]
+
+    def test_sort_by_title_ascending(self) -> None:
+        response = self.client.get(reverse("notes:list"), {"sort": "title", "dir": "asc"})
+        titles = [note.title for note in response.context["notes"]]
+        assert titles == ["Plumber quotes", "Tile ideas"]
+
+    def test_htmx_request_returns_table_partial_only(self) -> None:
+        response = self.client.get(reverse("notes:list"), HTTP_HX_REQUEST="true")
+        content = response.content.decode()
+        assert "<html" not in content
+        assert self.note_a.title in content
+
+
 class NoteMarkdownRenderingTests(TestCase):
     def test_renders_markdown_formatting_to_html(self) -> None:
         html = render_markdown("**bold** and a list:\n\n- one\n- two")
