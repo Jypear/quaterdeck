@@ -39,12 +39,14 @@ from budget.models import (
 from budget.services import (
     ZERO,
     AccountLane,
+    FlowGraph,
     Period,
     _monthly_anchor,
     _shift_month,
     account_summary,
     account_timelines,
     active_period,
+    budget_flow,
     budget_summary,
     outgoings_percentage,
     pot_progress,
@@ -290,6 +292,41 @@ class TimelineView(TemplateView):
         context["currency"] = settings.currency
         context["window"] = Period(start, end)
         context["has_stops"] = any(lane.stops for lane in lanes)
+        return context
+
+
+def _flow_json(graph: FlowGraph) -> dict[str, Any]:
+    """Shapes a FlowGraph into the {data, links} structure ECharts' sankey
+    series expects. Kept in the view (not services) since it's presentation,
+    not domain logic — mirrors `_timeline_svg`. Node/link `kind` strings are
+    resolved to theme colours client-side (see flow.html's extra_js) so the
+    chart follows the light/dark toggle without a server round-trip."""
+    return {
+        "data": [{"name": node.name, "kind": node.kind} for node in graph.nodes],
+        "links": [
+            {"source": link.source, "target": link.target, "value": float(link.value), "kind": link.kind}
+            for link in graph.links
+        ],
+    }
+
+
+class FlowView(TemplateView):
+    def get_template_names(self) -> list[str]:
+        return ["budget/_flow.html"] if _is_partial_request(self.request) else ["budget/flow.html"]
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        account_ids = _requested_account_ids(self.request)
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+
+        graph = budget_flow(settings.budget_mode, period, account_ids)
+
+        context["flow_data"] = _flow_json(graph)
+        context["all_accounts"] = Account.objects.filter(is_active=True)
+        context["selected_account_ids"] = account_ids
+        context["currency"] = settings.currency
+        context["has_flows"] = bool(graph.links)
         return context
 
 

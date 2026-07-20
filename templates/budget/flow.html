@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Flow — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% include "_page_header.html" with title="Flow" subtitle="How income moves through your accounts to bills, transfers, and savings this period." %}
+{% include "budget/_subnav.html" %}
+
+<form id="flow-filters" class="row g-3 align-items-start mb-4"
+      hx-get="{% url 'budget:flow' %}"
+      hx-target="#budget-flow"
+      hx-push-url="true"
+      hx-trigger="change">
+  <div class="col">
+    <span class="form-label d-block">Accounts</span>
+    <div class="d-flex flex-wrap gap-3">
+      {% for account in all_accounts %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="accounts" value="{{ account.id }}"
+               id="flow-account-{{ account.id }}"
+               {% if not selected_account_ids or account.id in selected_account_ids %}checked{% endif %}>
+        <label class="form-check-label" for="flow-account-{{ account.id }}">{{ account.name }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</form>
+
+<div class="d-flex flex-wrap gap-3 mb-3 small text-muted">
+  <span><span class="flow-legend-dot flow-node-income"></span> Income</span>
+  <span><span class="flow-legend-dot flow-node-account"></span> Account</span>
+  <span><span class="flow-legend-dot flow-node-bill"></span> Bill / one-off</span>
+  <span><span class="flow-legend-dot flow-node-transfer"></span> Transfer</span>
+  <span><span class="flow-legend-dot flow-node-surplus"></span> Surplus</span>
+  <span><span class="flow-legend-dot flow-node-pot"></span> Pot</span>
+  <span><span class="flow-legend-dot flow-node-unallocated"></span> Unallocated</span>
+</div>
+
+<div id="budget-flow">
+  {% include "budget/_flow.html" %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/echarts/echarts.min.js' %}"></script>
+<script>
+(function () {
+  // Node/link "kind" -> the CSS custom property carrying its colour, so the
+  // chart reuses the site's existing palette (and flips with the light/dark
+  // toggle at the point the chart is (re)built — a live-theme-swap redraw
+  // isn't wired up, same limitation as most canvas-based charts).
+  var KIND_VARS = {
+    income: "--qd-verdigris",
+    account: "--qd-brass",
+    bill: "--bs-danger",
+    transfer: "--bs-info",
+    surplus: "--qd-brass-deep",
+    pot: "--bs-success",
+    unallocated: "--bs-secondary-color"
+  };
+
+  function kindColor(kind) {
+    var name = KIND_VARS[kind] || "--bs-secondary-color";
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  var chart = null;
+
+  function render() {
+    var container = document.getElementById("flow-chart");
+    var script = document.getElementById("flow-data");
+    if (!container || !script) return;
+    var graph = JSON.parse(script.textContent);
+    var currency = container.dataset.currency;
+
+    if (chart) chart.dispose();
+    chart = echarts.init(container);
+    chart.setOption({
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove",
+        valueFormatter: function (value) { return currency + " " + value.toFixed(2); }
+      },
+      series: [{
+        type: "sankey",
+        emphasis: { focus: "adjacency" },
+        nodeAlign: "justify",
+        label: { color: "inherit" },
+        data: graph.data.map(function (node) {
+          return { name: node.name, itemStyle: { color: kindColor(node.kind) } };
+        }),
+        links: graph.links.map(function (link) {
+          return {
+            source: link.source,
+            target: link.target,
+            value: link.value,
+            lineStyle: { color: kindColor(link.kind), opacity: 0.35 }
+          };
+        })
+      }]
+    });
+  }
+
+  render();
+
+  document.body.addEventListener("htmx:afterSettle", function (event) {
+    if (event.target && event.target.id === "budget-flow") render();
+  });
+  window.addEventListener("resize", function () {
+    if (chart) chart.resize();
+  });
+})();
+</script>
+{% endblock %}

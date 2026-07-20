@@ -9,6 +9,7 @@ urlpatterns = [
     path("accounts/", views.AccountListView.as_view(), name="accounts"),
     path("pots/", views.PotListView.as_view(), name="pots"),
     path("timeline/", views.TimelineView.as_view(), name="timeline"),
+    path("flow/", views.FlowView.as_view(), name="flow"),
     # Account CRUD
     path("account/add/", views.AccountCreateView.as_view(), name="account_add"),
     path("account/<int:pk>/edit/", views.AccountUpdateView.as_view(), name="account_edit"),

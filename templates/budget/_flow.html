@@ -1,0 +1,6 @@
+{% if not has_flows %}
+<p class="text-muted">No income, outgoings, transfers, or pot contributions fall in this period for the selected accounts.</p>
+{% else %}
+<div class="flow-chart" id="flow-chart" data-currency="{{ currency }}"></div>
+{{ flow_data|json_script:"flow-data" }}
+{% endif %}

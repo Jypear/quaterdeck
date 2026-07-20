@@ -296,6 +296,131 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
 
 
 @dataclass
+class FlowNode:
+    name: str  # unique among all nodes — the presentation layer keys ECharts sankey nodes by name
+    kind: str  # "income" / "account" / "bill" / "surplus" / "pot" / "unallocated"
+
+
+@dataclass
+class FlowLink:
+    source: str
+    target: str
+    value: Decimal
+    kind: str  # "income" / "bill" / "transfer" / "surplus" / "pot" / "unallocated" — drives link colour
+
+
+@dataclass
+class FlowGraph:
+    nodes: list[FlowNode] = field(default_factory=list)
+    links: list[FlowLink] = field(default_factory=list)
+
+
+def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = None) -> FlowGraph:
+    """Sankey-shaped view of one period's money movement: income -> accounts
+    -> bills/one-offs, netted transfers between accounts, and each account's
+    surplus pooled into a "Surplus" node that fans out to pot contributions
+    and whatever's left ("Unallocated").
+
+    Node names must be unique (see `FlowNode`); collisions (e.g. two bills
+    both named "Insurance") get a disambiguating " (2)" suffix.
+
+    Overspent accounts (net <= 0) contribute no surplus link — there's
+    nothing to flow onward. Transfers to/from an account outside the
+    selected set are skipped, since there'd be no node for them to land on.
+    # ponytail: both are fine for a personal single-instance app; revisit if
+    # the account filter needs to show partial/one-sided transfers.
+    """
+    accounts = _prefetched_accounts(account_ids)
+    included_ids = {a.id for a in accounts}
+    seen_names: dict[str, int] = {}
+    nodes: list[FlowNode] = []
+    links: list[FlowLink] = []
+
+    def add_node(name: str, kind: str) -> str:
+        seen_names[name] = seen_names.get(name, 0) + 1
+        unique_name = name if seen_names[name] == 1 else f"{name} ({seen_names[name]})"
+        nodes.append(FlowNode(unique_name, kind))
+        return unique_name
+
+    def add_link(source: str, target: str, value: Decimal, kind: str) -> None:
+        if value > 0:
+            links.append(FlowLink(source, target, value, kind))
+
+    account_names = {a.id: add_node(a.name, "account") for a in accounts}
+
+    transfers_in_total: dict[int, Decimal] = {}
+    transfers_out_total: dict[int, Decimal] = {}
+    net_transfers: dict[tuple[int, int], Decimal] = {}
+
+    for account in accounts:
+        for income in account.income_streams.all():
+            amount = normalise(income.amount, income.frequency, mode)
+            add_link(add_node(income.name, "income"), account_names[account.id], amount, "income")
+
+        for outgoing in account.outgoings.all():
+            amount = normalise(outgoing.amount, outgoing.frequency, mode)
+            add_link(account_names[account.id], add_node(outgoing.name, "bill"), amount, "bill")
+
+        for one_off in account.one_off_outgoings.all():
+            if period.start <= one_off.due_date < period.end:
+                add_link(account_names[account.id], add_node(one_off.name, "bill"), one_off.amount, "bill")
+
+        for transfer in account.transfers_out.all():
+            if transfer.to_account_id not in included_ids:
+                continue
+            amount = normalise(transfer.amount, transfer.frequency, mode)
+            transfers_out_total[account.id] = transfers_out_total.get(account.id, ZERO) + amount
+            transfers_in_total[transfer.to_account_id] = transfers_in_total.get(transfer.to_account_id, ZERO) + amount
+            pair = (min(account.id, transfer.to_account_id), max(account.id, transfer.to_account_id))
+            signed = amount if account.id == pair[0] else -amount
+            net_transfers[pair] = net_transfers.get(pair, ZERO) + signed
+
+    # One netted link per account pair — avoids a 2-node cycle, which ECharts'
+    # sankey (a DAG layout) can't render.
+    for (low_id, high_id), signed in net_transfers.items():
+        if signed > 0:
+            add_link(account_names[low_id], account_names[high_id], signed, "transfer")
+        elif signed < 0:
+            add_link(account_names[high_id], account_names[low_id], -signed, "transfer")
+
+    account_surplus: dict[int, Decimal] = {}
+    for account in accounts:
+        income = sum((normalise(i.amount, i.frequency, mode) for i in account.income_streams.all()), ZERO)
+        outgoings = sum((normalise(o.amount, o.frequency, mode) for o in account.outgoings.all()), ZERO)
+        one_offs = sum(
+            (o.amount for o in account.one_off_outgoings.all() if period.start <= o.due_date < period.end), ZERO
+        )
+        net = (
+            income
+            + transfers_in_total.get(account.id, ZERO)
+            - outgoings
+            - transfers_out_total.get(account.id, ZERO)
+            - one_offs
+        )
+        if net > 0:
+            account_surplus[account.id] = net
+
+    total_surplus = sum(account_surplus.values(), ZERO)
+    if total_surplus > 0:
+        surplus_name = add_node("Surplus", "surplus")
+        for account_id, net in account_surplus.items():
+            add_link(account_names[account_id], surplus_name, net, "surplus")
+
+        pot_contributions = ZERO
+        for entry in PotEntry.objects.filter(
+            period_start__gte=period.start, period_start__lt=period.end
+        ).select_related("pot"):
+            add_link(surplus_name, add_node(entry.pot.name, "pot"), entry.actual_amount, "pot")
+            pot_contributions += entry.actual_amount
+
+        unallocated = total_surplus - pot_contributions
+        if unallocated > 0:
+            add_link(surplus_name, add_node("Unallocated", "unallocated"), unallocated, "unallocated")
+
+    return FlowGraph(nodes=nodes, links=links)
+
+
+@dataclass
 class TimelineStop:
     date: date
     label: str

@@ -24,6 +24,7 @@ from budget.services import (
     account_summary,
     account_timelines,
     active_period,
+    budget_flow,
     budget_summary,
     normalise,
     periods_between,
@@ -239,6 +240,96 @@ class AccountTimelinesTests(TestCase):
         lanes = account_timelines(date(2026, 7, 1), date(2026, 8, 1))
         lane = next(lane for lane in lanes if lane.account.id == self.personal.id)
         assert lane.stops == []
+
+
+class BudgetFlowTests(TestCase):
+    """`budget_flow` builds the Sankey-shaped graph for the Flow view."""
+
+    def setUp(self) -> None:
+        self.personal = Account.objects.create(name="Personal")
+        self.joint = Account.objects.create(name="Joint")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.mode = Settings.BudgetMode.MONTHLY
+        self.period = Period(date(2026, 7, 1), date(2026, 8, 1))
+
+    def test_income_balances_against_bills_and_banked_surplus(self) -> None:
+        """Transfers move money between account nodes without leaving the
+        account layer, so conservation excludes them: income in == bills +
+        surplus out."""
+        IncomeStream.objects.create(name="Salary", amount=Decimal("2000"), frequency="monthly", account=self.personal)
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=self.category, frequency="monthly", account=self.personal
+        )
+        Transfer.objects.create(
+            name="Joint contribution",
+            from_account=self.personal,
+            to_account=self.joint,
+            amount=Decimal("300"),
+            frequency="monthly",
+        )
+        graph = budget_flow(self.mode, self.period)
+
+        total_income = sum((link.value for link in graph.links if link.kind == "income"), Decimal("0"))
+        total_spent_or_banked = sum(
+            (link.value for link in graph.links if link.kind in ("bill", "surplus")), Decimal("0")
+        )
+        assert total_income == Decimal("2000")
+        assert total_income == total_spent_or_banked
+
+    def test_transfers_between_same_pair_are_netted_into_one_link(self) -> None:
+        Transfer.objects.create(
+            name="To joint",
+            from_account=self.personal,
+            to_account=self.joint,
+            amount=Decimal("500"),
+            frequency="monthly",
+        )
+        Transfer.objects.create(
+            name="Back to personal",
+            from_account=self.joint,
+            to_account=self.personal,
+            amount=Decimal("200"),
+            frequency="monthly",
+        )
+        graph = budget_flow(self.mode, self.period)
+        transfer_links = [link for link in graph.links if link.kind == "transfer"]
+        assert len(transfer_links) == 1
+        assert transfer_links[0].source == "Personal"
+        assert transfer_links[0].target == "Joint"
+        assert transfer_links[0].value == Decimal("300")
+
+    def test_pot_contribution_and_unallocated_split_the_surplus(self) -> None:
+        IncomeStream.objects.create(name="Salary", amount=Decimal("1000"), frequency="monthly", account=self.personal)
+        pot = Pot.objects.create(
+            name="Holiday", target_amount=Decimal("2000"), target_date=date(2027, 1, 1), monthly_target=Decimal("100")
+        )
+        PotEntry.objects.create(pot=pot, period_start=date(2026, 7, 1), actual_amount=Decimal("300"))
+        graph = budget_flow(self.mode, self.period)
+
+        pot_link = next(link for link in graph.links if link.kind == "pot")
+        unallocated_link = next(link for link in graph.links if link.kind == "unallocated")
+        assert pot_link.value == Decimal("300")
+        assert unallocated_link.value == Decimal("700")
+
+    def test_duplicate_bill_names_get_disambiguated(self) -> None:
+        Outgoing.objects.create(
+            name="Insurance", amount=Decimal("50"), category=self.category, frequency="monthly", account=self.personal
+        )
+        Outgoing.objects.create(
+            name="Insurance", amount=Decimal("30"), category=self.category, frequency="monthly", account=self.joint
+        )
+        graph = budget_flow(self.mode, self.period)
+        names = sorted(node.name for node in graph.nodes if node.kind == "bill")
+        assert names == ["Insurance", "Insurance (2)"]
+
+    def test_overspent_account_contributes_no_surplus_link(self) -> None:
+        IncomeStream.objects.create(name="Salary", amount=Decimal("500"), frequency="monthly", account=self.personal)
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=self.category, frequency="monthly", account=self.personal
+        )
+        graph = budget_flow(self.mode, self.period)
+        assert not any(link.kind == "surplus" for link in graph.links)
+        assert not any(node.kind == "surplus" for node in graph.nodes)
 
 
 class PeriodsBetweenTests(TestCase):

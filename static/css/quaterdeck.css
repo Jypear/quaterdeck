@@ -345,6 +345,50 @@ h1, h2, h3, h4, h5, h6,
   background-color: var(--bs-info);
 }
 
+/* Budget flow — a Sankey diagram (ECharts) of income -> accounts ->
+   bills/transfers/pots for the active period. Colours reuse the same
+   palette as the timeline legend dots above. */
+.flow-chart {
+  width: 100%;
+  height: 600px;
+}
+
+.flow-legend-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  margin-right: 0.25rem;
+}
+
+.flow-legend-dot.flow-node-income {
+  background-color: var(--qd-verdigris);
+}
+
+.flow-legend-dot.flow-node-account {
+  background-color: var(--qd-brass);
+}
+
+.flow-legend-dot.flow-node-bill {
+  background-color: var(--bs-danger);
+}
+
+.flow-legend-dot.flow-node-transfer {
+  background-color: var(--bs-info);
+}
+
+.flow-legend-dot.flow-node-surplus {
+  background-color: var(--qd-brass-deep);
+}
+
+.flow-legend-dot.flow-node-pot {
+  background-color: var(--bs-success);
+}
+
+.flow-legend-dot.flow-node-unallocated {
+  background-color: var(--bs-secondary-color);
+}
+
 /* Visible keyboard focus, site-wide. Many Bootstrap components (.nav-link,
    .btn, .dropdown-item, .page-link...) set their own hardcoded blue
    focus-visible box-shadow at higher specificity than a plain element
