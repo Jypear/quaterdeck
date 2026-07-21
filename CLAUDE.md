@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Quaterdeck is a self-hosted personal life OS — budget tracking, task management, projects, calendar, and AI-assisted notes — built as a Django monolith with a server-rendered frontend. See `PLAN.md` for the full feature spec and data models.
+Quaterdeck is a self-hosted personal life OS — budget tracking, task management, projects, calendar, and AI-assisted notes — built as a Django monolith with a server-rendered frontend.
 
 ## Tech Stack
 
