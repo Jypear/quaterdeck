@@ -14,6 +14,7 @@ AI-powered notes layer. Built with Django.
 
 ## Where to start
 
+- New to using the app? Start with the [User guide overview](guide/overview.md).
 - New to the codebase? Start with [Getting started](guides/getting-started.md).
 - Want the "why" behind a design decision? See [Architecture](guides/architecture.md).
 - Running your own instance? See [Deployment](guides/deployment.md).

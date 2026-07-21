@@ -30,7 +30,15 @@ plugins:
 
 nav:
   - Home: index.md
-  - Guides:
+  - User guide:
+      - Overview: guide/overview.md
+      - Budget & pots: guide/budget.md
+      - Tasks: guide/tasks.md
+      - Calendar: guide/calendar.md
+      - Projects: guide/projects.md
+      - Notes: guide/notes.md
+      - Settings: guide/settings.md
+  - Setup & deployment:
       - Getting started: guides/getting-started.md
       - Architecture: guides/architecture.md
       - Deployment: guides/deployment.md
