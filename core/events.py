@@ -13,12 +13,13 @@ from typing import TYPE_CHECKING
 from django.urls import reverse
 
 from budget.models import IncomeStream, OneOffOutgoing, Outgoing, Pot, Transfer
-from budget.services import scheduled_dates
+from budget.services import ZERO, active_period, prefetched_accounts, resolve_transfer_amounts, scheduled_dates
 from tasks.models import Task
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import date
+    from decimal import Decimal
 
 
 @dataclass(frozen=True)
@@ -35,8 +36,12 @@ _PRIORITY_CSS = {
 }
 
 
-def month_events(start: date, end: date) -> dict[date, list[CalEvent]]:
-    """Events keyed by date across the half-open [start, end) range."""
+def month_events(start: date, end: date, mode: str, start_day: int) -> dict[date, list[CalEvent]]:
+    """Events keyed by date across the half-open [start, end) range.
+
+    `mode`/`start_day` (Settings.budget_mode / budget_start_day) resolve
+    split/surplus transfers to a display amount — see `_add_recurring_events`.
+    """
     events: dict[date, list[CalEvent]] = defaultdict(list)
 
     tasks: Iterable[Task] = Task.objects.filter(due_date__gte=start, due_date__lt=end)
@@ -66,8 +71,18 @@ def month_events(start: date, end: date) -> dict[date, list[CalEvent]]:
         events, IncomeStream.objects.filter(**scheduled), "income_edit", "bg-success", "+£", start, end
     )
     _add_recurring_events(events, Outgoing.objects.filter(**scheduled), "outgoing_edit", "bg-danger", "£", start, end)
+
+    period = active_period(mode, start_day)
+    transfer_amounts = resolve_transfer_amounts(prefetched_accounts(), mode, period)
     _add_recurring_events(
-        events, Transfer.objects.filter(**scheduled), "transfer_edit", "bg-info text-dark", "£", start, end
+        events,
+        Transfer.objects.filter(**scheduled),
+        "transfer_edit",
+        "bg-info text-dark",
+        "£",
+        start,
+        end,
+        amounts=transfer_amounts,
     )
 
     return events
@@ -81,14 +96,23 @@ def _add_recurring_events(
     amount_prefix: str,
     start: date,
     end: date,
+    amounts: dict[int, Decimal] | None = None,
 ) -> None:
     """Plot recurring income/outgoing/transfer entries on their scheduled pay
-    date(s), for entries that have `recurring_day` set (see FrequencyMixin)."""
+    date(s), for entries that have `recurring_day` set (see FrequencyMixin).
+
+    `amounts` (from `resolve_transfer_amounts`) supplies the display amount
+    for split/surplus transfers, whose `amount` field is otherwise `None`.
+    # ponytail: every occurrence in [start, end) shows the *current* budget
+    # period's resolved amount, even ones landing in a different period —
+    # same simplification as `account_timelines`' timeline view.
+    """
     for entry in entries:
+        amount = amounts.get(entry.pk, entry.amount or ZERO) if amounts is not None else entry.amount
         for day in scheduled_dates(entry, start, end):
             events[day].append(
                 CalEvent(
-                    f"{entry.name} {amount_prefix}{entry.amount}",
+                    f"{entry.name} {amount_prefix}{amount}",
                     reverse(f"budget:{url_name}", args=[entry.pk]),
                     css,
                 )

@@ -10,10 +10,37 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
-from budget.models import Account, OneOffOutgoing, Pot
+from budget.models import Account, IncomeStream, OneOffOutgoing, Outgoing, OutgoingCategory, Pot, Transfer
 from core.events import month_events
 from core.models import Settings
 from tasks.models import Task
+
+
+class MonthEventsDynamicTransferTests(TestCase):
+    """Regression: split/surplus transfers used to show as `£None` on the
+    calendar/dashboard since their `amount` field is null — the label must
+    use the resolved amount instead."""
+
+    def test_split_transfer_shows_resolved_amount(self) -> None:
+        source = Account.objects.create(name="Personal")
+        destination = Account.objects.create(name="Joint")
+        category = OutgoingCategory.objects.create(name="Bills")
+        IncomeStream.objects.create(name="Salary", amount=Decimal("3000"), frequency="monthly", account=source)
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("1000"), category=category, frequency="monthly", account=destination
+        )
+        Transfer.objects.create(
+            name="Contribution",
+            from_account=source,
+            to_account=destination,
+            calc_method=Transfer.CalcMethod.SPLIT,
+            frequency="monthly",
+            recurring_day=15,
+        )
+        events = month_events(date(2026, 7, 1), date(2026, 8, 1), Settings.BudgetMode.MONTHLY, 1)
+        label = events[date(2026, 7, 15)][0].label
+        assert "None" not in label
+        assert label == "Contribution £1000.00"
 
 
 class MetricsViewTests(TestCase):
@@ -37,7 +64,7 @@ class MonthEventsTests(TestCase):
 
     def test_task_due_date_is_bucketed(self) -> None:
         task = Task.objects.create(title="Renew passport", due_date=date(2026, 7, 15))
-        events = month_events(date(2026, 7, 1), date(2026, 8, 1))
+        events = month_events(date(2026, 7, 1), date(2026, 8, 1), Settings.BudgetMode.MONTHLY, 1)
         assert events[date(2026, 7, 15)][0].label == "Renew passport"
         assert reverse("tasks:task_edit", args=[task.id]) in events[date(2026, 7, 15)][0].url
 
@@ -45,19 +72,19 @@ class MonthEventsTests(TestCase):
         OneOffOutgoing.objects.create(
             name="Car service", amount=Decimal("300"), due_date=date(2026, 7, 20), account=self.account
         )
-        events = month_events(date(2026, 7, 1), date(2026, 8, 1))
+        events = month_events(date(2026, 7, 1), date(2026, 8, 1), Settings.BudgetMode.MONTHLY, 1)
         assert "Car service" in events[date(2026, 7, 20)][0].label
 
     def test_pot_target_date_is_bucketed(self) -> None:
         Pot.objects.create(
             name="Holiday", target_amount=Decimal("1000"), target_date=date(2026, 7, 31), monthly_target=Decimal("50")
         )
-        events = month_events(date(2026, 7, 1), date(2026, 8, 1))
+        events = month_events(date(2026, 7, 1), date(2026, 8, 1), Settings.BudgetMode.MONTHLY, 1)
         assert "Holiday" in events[date(2026, 7, 31)][0].label
 
     def test_dates_outside_range_are_excluded(self) -> None:
         Task.objects.create(title="Next month", due_date=date(2026, 8, 1))
-        events = month_events(date(2026, 7, 1), date(2026, 8, 1))
+        events = month_events(date(2026, 7, 1), date(2026, 8, 1), Settings.BudgetMode.MONTHLY, 1)
         assert date(2026, 8, 1) not in events
 
 

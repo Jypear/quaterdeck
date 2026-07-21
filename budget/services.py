@@ -346,7 +346,7 @@ class BudgetSummary:
     unallocated_surplus: Decimal = ZERO
 
 
-def _prefetched_accounts(account_ids: Iterable[int] | None) -> list[Account]:
+def prefetched_accounts(account_ids: Iterable[int] | None = None) -> list[Account]:
     queryset = Account.objects.filter(is_active=True).prefetch_related(
         "income_streams",
         "outgoings",
@@ -368,7 +368,7 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
     what's already been logged into pots this period — the nudge-to-allocate
     figure.
     """
-    accounts = _prefetched_accounts(account_ids)
+    accounts = prefetched_accounts(account_ids)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     summaries = [account_summary(a, mode, period, transfer_amounts) for a in accounts]
 
@@ -446,7 +446,7 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
     # ponytail: both are fine for a personal single-instance app; revisit if
     # the account filter needs to show partial/one-sided transfers.
     """
-    accounts = _prefetched_accounts(account_ids)
+    accounts = prefetched_accounts(account_ids)
     included_ids = {a.id for a in accounts}
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     seen_names: dict[str, int] = {}
@@ -576,7 +576,7 @@ def account_timelines(
     # period — fine for a display-only timeline; revisit if per-occurrence
     # resolution is needed for one-off-heavy months.
     """
-    accounts = _prefetched_accounts(account_ids)
+    accounts = prefetched_accounts(account_ids)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period) if mode and period else {}
 
     lanes = []

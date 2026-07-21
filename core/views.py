@@ -37,7 +37,7 @@ class DashboardView(TemplateView):
         summary = budget_summary(settings.budget_mode, period)
 
         today = date.today()
-        upcoming = month_events(today, today + timedelta(days=14))
+        upcoming = month_events(today, today + timedelta(days=14), settings.budget_mode, settings.budget_start_day)
         upcoming_events = sorted(
             ((day, event) for day, events in upcoming.items() for event in events),
             key=lambda pair: pair[0],
@@ -126,9 +126,9 @@ class CalendarView(TemplateView):
 
         month_dates = calendar_module.Calendar(firstweekday=0).monthdatescalendar(year, month)
         range_start, range_end = month_dates[0][0], month_dates[-1][-1] + timedelta(days=1)
-        events = month_events(range_start, range_end)
-
         settings = Settings.get()
+        events = month_events(range_start, range_end, settings.budget_mode, settings.budget_start_day)
+
         # Recurring items with a scheduled `recurring_day` are plotted by
         # month_events() above; this marker covers the budget period boundary
         # itself (and stands in for any recurring item left unscheduled).
