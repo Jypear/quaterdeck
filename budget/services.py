@@ -191,16 +191,46 @@ def _account_one_offs(account: Account, period: Period) -> Decimal:
     )
 
 
+def _account_disposable(
+    account: Account,
+    mode: str,
+    period: Period,
+    amounts: dict[int, Decimal],
+    exclude_transfer_id: int,
+) -> Decimal:
+    """`account`'s income/outgoings/one-offs net, plus every already-resolved
+    transfer touching it except `exclude_transfer_id` — i.e. what's left in
+    the account before that one transfer is applied. Shared by the `split`
+    weighting (excludes the split transfer itself, not yet resolved) and the
+    `surplus` sweep (excludes the surplus transfer itself)."""
+    other_in = sum((amounts.get(t.id, ZERO) for t in account.transfers_in.all()), ZERO)
+    other_out = sum((amounts.get(t.id, ZERO) for t in account.transfers_out.all() if t.id != exclude_transfer_id), ZERO)
+    return (
+        _account_income(account, mode)
+        + other_in
+        - _account_outgoings(account, mode)
+        - other_out
+        - _account_one_offs(account, period)
+    )
+
+
 def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Period) -> dict[int, Decimal]:
     """Effective per-`period` amount for every transfer out of `accounts`.
 
     - fixed:   `normalise(amount, frequency, mode)`, same as a plain outgoing.
-    - split:   this transfer's salary-ratio share of `to_account`'s funding
-               need (its outgoings + fixed transfers-out + one-offs, minus
-               its own income), split across every `split` transfer landing
-               on that account: `share = required/n + (salary - mean_salary)`.
+    - split:   this transfer's share of `to_account`'s funding need (its
+               outgoings + fixed transfers-out + one-offs, minus its own
+               income), weighted by each contributor's own disposable income
+               (`_account_disposable` — income minus their own outgoings and
+               other transfers) rather than raw salary:
+               `share = required/n + (disposable - mean_disposable)`. This is
+               what makes two contributors' post-split remainders come out
+               equal even when their personal outgoings differ (see the
+               `DynamicTransferTests.test_split_equalises_take_home_when_personal_outgoings_differ`
+               regression) — weighting by raw salary alone would leave a gap
+               equal to the difference in personal outgoings.
     - surplus: whatever's left in `from_account` after everything else
-               (income + transfers in - outgoings - other transfers out - one-offs).
+               (`_account_disposable` again, clamped to zero).
 
     All results clamp to zero (never surface a negative transfer). Resolved in
     dependency order fixed -> split -> surplus, so each stage can use amounts
@@ -250,13 +280,18 @@ def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Per
         )
         required = max(ZERO, required)
 
-        salaries = {
-            t.id: _account_income(by_id[t.from_account_id], mode) if t.from_account_id in by_id else ZERO for t in group
+        disposables = {
+            t.id: (
+                _account_disposable(by_id[t.from_account_id], mode, period, amounts, t.id)
+                if t.from_account_id in by_id
+                else ZERO
+            )
+            for t in group
         }
-        mean_salary = sum(salaries.values(), ZERO) / len(group)
+        mean_disposable = sum(disposables.values(), ZERO) / len(group)
         share = required / len(group)
         for transfer in group:
-            amounts[transfer.id] = max(ZERO, share + (salaries[transfer.id] - mean_salary))
+            amounts[transfer.id] = max(ZERO, share + (disposables[transfer.id] - mean_disposable))
 
     for transfer in all_transfers:
         if transfer.calc_method != Transfer.CalcMethod.SURPLUS:
@@ -265,16 +300,7 @@ def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Per
         if source is None:
             amounts[transfer.id] = ZERO
             continue
-        other_in = sum((amounts.get(t.id, ZERO) for t in source.transfers_in.all()), ZERO)
-        other_out = sum((amounts.get(t.id, ZERO) for t in source.transfers_out.all() if t.id != transfer.id), ZERO)
-        remainder = (
-            _account_income(source, mode)
-            + other_in
-            - _account_outgoings(source, mode)
-            - other_out
-            - _account_one_offs(source, period)
-        )
-        amounts[transfer.id] = max(ZERO, remainder)
+        amounts[transfer.id] = max(ZERO, _account_disposable(source, mode, period, amounts, transfer.id))
 
     return amounts
 

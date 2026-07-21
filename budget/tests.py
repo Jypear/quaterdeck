@@ -498,6 +498,34 @@ class DynamicTransferTests(TestCase):
         assert amounts[b_to_joint.id] == Decimal("0")
         assert amounts[a_to_joint.id] == Decimal("500")
 
+    def test_split_equalises_take_home_when_personal_outgoings_differ(self) -> None:
+        # Weighting by raw salary alone would leave a gap between A's and B's
+        # final take-home equal to the difference in their personal
+        # outgoings; weighting by disposable income (salary minus personal
+        # outgoings) closes that gap so both take-homes land exactly equal.
+        Outgoing.objects.create(
+            name="A Phone", amount=Decimal("6.90"), category=self.category, frequency="monthly", account=self.a
+        )
+        Outgoing.objects.create(
+            name="B Phone", amount=Decimal("8.40"), category=self.category, frequency="monthly", account=self.b
+        )
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        b_to_joint = Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        a_to_spends = Transfer.objects.create(
+            name="A to spends", from_account=self.a, to_account=self.spends, calc_method=Transfer.CalcMethod.SURPLUS
+        )
+        b_to_spends = Transfer.objects.create(
+            name="B to spends", from_account=self.b, to_account=self.spends, calc_method=Transfer.CalcMethod.SURPLUS
+        )
+        amounts = self._resolve()
+        assert amounts[a_to_spends.id] == amounts[b_to_spends.id] == Decimal("1492.35")
+        assert amounts[a_to_joint.id] == Decimal("1500.75")
+        assert amounts[b_to_joint.id] == Decimal("499.25")
+
 
 class PotProgressTests(TestCase):
     def test_behind_when_saved_less_than_expected(self) -> None:
