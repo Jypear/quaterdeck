@@ -26,16 +26,32 @@
 
 ## Quick start
 
+Run the pre-built image (published to `ghcr.io/jypear/quaterdeck` on every release —
+no clone or build needed):
+
 ```bash
+curl -O https://raw.githubusercontent.com/Jypear/quaterdeck/main/docker-compose.prod.yml
+curl -O https://raw.githubusercontent.com/Jypear/quaterdeck/main/.env.example
 cp .env.example .env
 # edit .env and set SECRET_KEY (see the comment above it for how to generate one)
-docker compose up --build
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 The app is then available at http://localhost:8000. On first boot, create an admin user:
 
 ```bash
-docker compose exec web uv run python manage.py createsuperuser
+docker compose -f docker-compose.prod.yml exec web uv run python manage.py createsuperuser
+```
+
+See [Deployment](https://jypear.github.io/quaterdeck/guides/deployment/) for image tags
+and pinning a specific version.
+
+### Building from source
+
+```bash
+git clone https://github.com/Jypear/quaterdeck.git && cd quaterdeck
+cp .env.example .env
+docker compose up --build
 ```
 
 ### Local development (no Docker)

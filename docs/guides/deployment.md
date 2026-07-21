@@ -17,7 +17,32 @@ Copy `.env.example` to `.env` and set at minimum:
 `ai_api_key` (configured in the Settings model via the UI, not `.env`) is stored
 encrypted — see `core.fields`.
 
-## Docker Compose
+## Running the published image (recommended)
+
+Every push to `main` and every version tag publishes a multi-arch (amd64 + arm64) image
+to `ghcr.io/jypear/quaterdeck` — no clone or build required. Grab `docker-compose.prod.yml`
+and `.env.example` from the repo, then:
+
+```bash
+cp .env.example .env
+# edit .env and set SECRET_KEY (see the comment above it for how to generate one)
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml exec web uv run python manage.py createsuperuser
+```
+
+Image tags:
+
+| Tag | What it points to |
+|---|---|
+| `latest` | Most recent version tag (recommended for most installs) |
+| `X.Y.Z` / `X.Y` | A specific release — pin this for reproducible upgrades |
+| `edge` | Latest commit on `main` — may be unstable |
+
+To pin a version, edit the `image:` line in `docker-compose.prod.yml` (e.g.
+`ghcr.io/jypear/quaterdeck:0.1.0`) and re-run `docker compose -f docker-compose.prod.yml
+up -d`.
+
+## Building from source
 
 `docker-compose.yml` defines two services:
 
@@ -29,6 +54,8 @@ cp .env.example .env
 docker compose up --build
 docker compose exec web uv run python manage.py createsuperuser
 ```
+
+Use this path if you're developing against the app rather than just running it.
 
 ## Running without Docker
 
