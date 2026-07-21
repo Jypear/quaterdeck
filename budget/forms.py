@@ -88,13 +88,24 @@ class TransferForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
         model = Transfer
         fields: ClassVar[list[str]] = [
             "name",
+            "calc_method",
             "amount",
             "frequency",
             "from_account",
             "to_account",
             *_RECURRING_SCHEDULE_FIELDS,
         ]
-        widgets: ClassVar[dict[str, Any]] = _RECURRING_SCHEDULE_WIDGETS
+        widgets: ClassVar[dict[str, Any]] = {
+            # x-model drives the fixed-only x-show toggle in templates/budget/_form.html.
+            "calc_method": forms.Select(attrs={"x-model": "calc_method"}),
+            **_RECURRING_SCHEDULE_WIDGETS,
+        }
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        if cleaned_data.get("calc_method") == Transfer.CalcMethod.FIXED and cleaned_data.get("amount") is None:
+            self.add_error("amount", "Required for a fixed transfer.")
+        return cleaned_data
 
 
 class OneOffOutgoingForm(_BootstrapModelForm):

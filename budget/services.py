@@ -176,6 +176,109 @@ def periods_between(start: date, end: date, mode: str) -> int:
     return max(1, months)
 
 
+def _account_income(account: Account, mode: str) -> Decimal:
+    return sum((normalise(i.amount, i.frequency, mode) for i in account.income_streams.all()), ZERO)
+
+
+def _account_outgoings(account: Account, mode: str) -> Decimal:
+    return sum((normalise(o.amount, o.frequency, mode) for o in account.outgoings.all()), ZERO)
+
+
+def _account_one_offs(account: Account, period: Period) -> Decimal:
+    return sum(
+        (o.amount for o in account.one_off_outgoings.all() if period.start <= o.due_date < period.end),
+        ZERO,
+    )
+
+
+def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Period) -> dict[int, Decimal]:
+    """Effective per-`period` amount for every transfer out of `accounts`.
+
+    - fixed:   `normalise(amount, frequency, mode)`, same as a plain outgoing.
+    - split:   this transfer's salary-ratio share of `to_account`'s funding
+               need (its outgoings + fixed transfers-out + one-offs, minus
+               its own income), split across every `split` transfer landing
+               on that account: `share = required/n + (salary - mean_salary)`.
+    - surplus: whatever's left in `from_account` after everything else
+               (income + transfers in - outgoings - other transfers out - one-offs).
+
+    All results clamp to zero (never surface a negative transfer). Resolved in
+    dependency order fixed -> split -> surplus, so each stage can use amounts
+    already resolved by the stages before it.
+
+    Expects the same related-manager prefetch as `account_summary`. `accounts`
+    should include both ends of every transfer of interest — a transfer
+    reaching outside the set resolves using whatever prefetched data exists
+    for its far end, falling back to zero if that account wasn't fetched.
+
+    # ponytail: a destination's "required" only counts its FIXED transfers-out
+    # (a split/surplus outflow would make the dependency circular), and a
+    # surplus transfer only nets already-resolved siblings, so two surplus
+    # transfers off one account both claim from the same remainder rather
+    # than splitting it. Both match the one-savings-transfer,
+    # one-split-pair, one-surplus-sweep household setup this was built for;
+    # extend if a multi-hop chain of dynamic transfers is ever needed.
+    """
+    by_id = {a.id: a for a in accounts}
+    all_transfers: list[Transfer] = [t for a in accounts for t in a.transfers_out.all()]
+    amounts: dict[int, Decimal] = {}
+
+    for transfer in all_transfers:
+        if transfer.calc_method == Transfer.CalcMethod.FIXED:
+            amounts[transfer.id] = normalise(transfer.amount or ZERO, transfer.frequency, mode)
+
+    by_destination: dict[int, list[Transfer]] = {}
+    for transfer in all_transfers:
+        if transfer.calc_method == Transfer.CalcMethod.SPLIT:
+            by_destination.setdefault(transfer.to_account_id, []).append(transfer)
+
+    for dest_id, group in by_destination.items():
+        dest = by_id.get(dest_id)
+        if dest is None:
+            for transfer in group:
+                amounts[transfer.id] = ZERO
+            continue
+
+        required = (
+            _account_outgoings(dest, mode)
+            + _account_one_offs(dest, period)
+            + sum(
+                (amounts[t.id] for t in dest.transfers_out.all() if t.calc_method == Transfer.CalcMethod.FIXED),
+                ZERO,
+            )
+            - _account_income(dest, mode)
+        )
+        required = max(ZERO, required)
+
+        salaries = {
+            t.id: _account_income(by_id[t.from_account_id], mode) if t.from_account_id in by_id else ZERO for t in group
+        }
+        mean_salary = sum(salaries.values(), ZERO) / len(group)
+        share = required / len(group)
+        for transfer in group:
+            amounts[transfer.id] = max(ZERO, share + (salaries[transfer.id] - mean_salary))
+
+    for transfer in all_transfers:
+        if transfer.calc_method != Transfer.CalcMethod.SURPLUS:
+            continue
+        source = by_id.get(transfer.from_account_id)
+        if source is None:
+            amounts[transfer.id] = ZERO
+            continue
+        other_in = sum((amounts.get(t.id, ZERO) for t in source.transfers_in.all()), ZERO)
+        other_out = sum((amounts.get(t.id, ZERO) for t in source.transfers_out.all() if t.id != transfer.id), ZERO)
+        remainder = (
+            _account_income(source, mode)
+            + other_in
+            - _account_outgoings(source, mode)
+            - other_out
+            - _account_one_offs(source, period)
+        )
+        amounts[transfer.id] = max(ZERO, remainder)
+
+    return amounts
+
+
 @dataclass
 class AccountSummary:
     account: Account
@@ -188,21 +291,33 @@ class AccountSummary:
     covered: bool
 
 
-def account_summary(account: Account, mode: str, period: Period) -> AccountSummary:
+def account_summary(
+    account: Account,
+    mode: str,
+    period: Period,
+    transfer_amounts: dict[int, Decimal] | None = None,
+) -> AccountSummary:
     """Normalised income/outgoings/transfers for one account over `period`.
+
+    `transfer_amounts` (from `resolve_transfer_amounts`) supplies each
+    transfer's effective amount; omit it to fall back to a plain
+    `normalise(amount, frequency, mode)` per transfer (fixed-only, no
+    split/surplus support — kept for callers that only ever use fixed
+    transfers, e.g. existing tests).
 
     Expects `account`'s related managers to already be prefetched by the
     caller (income_streams, outgoings, transfers_in, transfers_out,
     one_off_outgoings) to avoid N+1 queries across many accounts.
     """
-    income = sum((normalise(i.amount, i.frequency, mode) for i in account.income_streams.all()), ZERO)
-    outgoings = sum((normalise(o.amount, o.frequency, mode) for o in account.outgoings.all()), ZERO)
-    transfers_in = sum((normalise(t.amount, t.frequency, mode) for t in account.transfers_in.all()), ZERO)
-    transfers_out = sum((normalise(t.amount, t.frequency, mode) for t in account.transfers_out.all()), ZERO)
-    one_offs = sum(
-        (o.amount for o in account.one_off_outgoings.all() if period.start <= o.due_date < period.end),
-        ZERO,
-    )
+    income = _account_income(account, mode)
+    outgoings = _account_outgoings(account, mode)
+    if transfer_amounts is None:
+        transfers_in = sum((normalise(t.amount or ZERO, t.frequency, mode) for t in account.transfers_in.all()), ZERO)
+        transfers_out = sum((normalise(t.amount or ZERO, t.frequency, mode) for t in account.transfers_out.all()), ZERO)
+    else:
+        transfers_in = sum((transfer_amounts.get(t.id, ZERO) for t in account.transfers_in.all()), ZERO)
+        transfers_out = sum((transfer_amounts.get(t.id, ZERO) for t in account.transfers_out.all()), ZERO)
+    one_offs = _account_one_offs(account, period)
     net = income + transfers_in - outgoings - transfers_out - one_offs
     return AccountSummary(
         account=account,
@@ -254,7 +369,8 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
     figure.
     """
     accounts = _prefetched_accounts(account_ids)
-    summaries = [account_summary(a, mode, period) for a in accounts]
+    transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
+    summaries = [account_summary(a, mode, period, transfer_amounts) for a in accounts]
 
     total_income = sum((s.income for s in summaries), ZERO)
     total_outgoings = sum((s.outgoings for s in summaries), ZERO)
@@ -332,6 +448,7 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
     """
     accounts = _prefetched_accounts(account_ids)
     included_ids = {a.id for a in accounts}
+    transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     seen_names: dict[str, int] = {}
     nodes: list[FlowNode] = []
     links: list[FlowLink] = []
@@ -368,7 +485,7 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
         for transfer in account.transfers_out.all():
             if transfer.to_account_id not in included_ids:
                 continue
-            amount = normalise(transfer.amount, transfer.frequency, mode)
+            amount = transfer_amounts.get(transfer.id, ZERO)
             transfers_out_total[account.id] = transfers_out_total.get(account.id, ZERO) + amount
             transfers_in_total[transfer.to_account_id] = transfers_in_total.get(transfer.to_account_id, ZERO) + amount
             pair = (min(account.id, transfer.to_account_id), max(account.id, transfer.to_account_id))
@@ -385,11 +502,9 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
 
     account_surplus: dict[int, Decimal] = {}
     for account in accounts:
-        income = sum((normalise(i.amount, i.frequency, mode) for i in account.income_streams.all()), ZERO)
-        outgoings = sum((normalise(o.amount, o.frequency, mode) for o in account.outgoings.all()), ZERO)
-        one_offs = sum(
-            (o.amount for o in account.one_off_outgoings.all() if period.start <= o.due_date < period.end), ZERO
-        )
+        income = _account_income(account, mode)
+        outgoings = _account_outgoings(account, mode)
+        one_offs = _account_one_offs(account, period)
         net = (
             income
             + transfers_in_total.get(account.id, ZERO)
@@ -437,16 +552,35 @@ class AccountLane:
     end_balance: Decimal
 
 
-def account_timelines(start: date, end: date, account_ids: Iterable[int] | None = None) -> list[AccountLane]:
+def account_timelines(
+    start: date,
+    end: date,
+    account_ids: Iterable[int] | None = None,
+    mode: str | None = None,
+    period: Period | None = None,
+) -> list[AccountLane]:
     """One lane per active (or selected) account: every dated
     income/outgoing/transfer/one-off in [start, end), in date order, with a
     running balance from 0.
 
     Recurring entries use `scheduled_dates` (unscheduled entries, i.e. no
     `recurring_day`, don't appear — nothing to place them on the axis).
+
+    Pass `mode`/`period` (the current active budget period, not necessarily
+    `[start, end)` — this window can span several periods) to resolve
+    split/surplus transfers via `resolve_transfer_amounts`; without them,
+    every transfer occurrence falls back to its raw `amount` (zero for
+    split/surplus, since they have none).
+    # ponytail: a dynamic transfer shows the *current* period's resolved
+    # amount on every occurrence in the window, even ones in a different
+    # period — fine for a display-only timeline; revisit if per-occurrence
+    # resolution is needed for one-off-heavy months.
     """
+    accounts = _prefetched_accounts(account_ids)
+    transfer_amounts = resolve_transfer_amounts(accounts, mode, period) if mode and period else {}
+
     lanes = []
-    for account in _prefetched_accounts(account_ids):
+    for account in accounts:
         raw: list[tuple[date, str, Decimal, str, int | None]] = []
         for income in account.income_streams.all():
             for d in scheduled_dates(income, start, end):
@@ -455,11 +589,13 @@ def account_timelines(start: date, end: date, account_ids: Iterable[int] | None 
             for d in scheduled_dates(outgoing, start, end):
                 raw.append((d, outgoing.name, -outgoing.amount, "outgoing", None))
         for transfer in account.transfers_out.all():
+            amount = transfer_amounts.get(transfer.id, transfer.amount or ZERO)
             for d in scheduled_dates(transfer, start, end):
-                raw.append((d, transfer.name, -transfer.amount, "transfer", transfer.id))
+                raw.append((d, transfer.name, -amount, "transfer", transfer.id))
         for transfer in account.transfers_in.all():
+            amount = transfer_amounts.get(transfer.id, transfer.amount or ZERO)
             for d in scheduled_dates(transfer, start, end):
-                raw.append((d, transfer.name, transfer.amount, "transfer", transfer.id))
+                raw.append((d, transfer.name, amount, "transfer", transfer.id))
         for one_off in account.one_off_outgoings.all():
             if start <= one_off.due_date < end:
                 raw.append((one_off.due_date, one_off.name, -one_off.amount, "oneoff", None))

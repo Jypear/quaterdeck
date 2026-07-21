@@ -29,6 +29,7 @@ from budget.services import (
     normalise,
     periods_between,
     pot_progress,
+    resolve_transfer_amounts,
     scheduled_dates,
     to_display,
 )
@@ -411,6 +412,93 @@ class AccountSummaryTests(TestCase):
         assert summary.net == Decimal("-300")
 
 
+class DynamicTransferTests(TestCase):
+    """The household flow this feature was built for: two salaries split the
+    joint account's funding need by how much each earns, then sweep whatever
+    personal money is left into a shared spends account."""
+
+    def setUp(self) -> None:
+        self.mode = Settings.BudgetMode.MONTHLY
+        self.period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.a = Account.objects.create(name="A Personal")
+        self.b = Account.objects.create(name="B Personal")
+        self.joint = Account.objects.create(name="Joint", account_type="joint")
+        self.savings = Account.objects.create(name="Savings", account_type="savings")
+        self.spends = Account.objects.create(name="Spends")
+        IncomeStream.objects.create(name="A Salary", amount=Decimal("3000"), frequency="monthly", account=self.a)
+        IncomeStream.objects.create(name="B Salary", amount=Decimal("2000"), frequency="monthly", account=self.b)
+        Outgoing.objects.create(
+            name="Joint bills", amount=Decimal("1500"), category=self.category, frequency="monthly", account=self.joint
+        )
+        Transfer.objects.create(
+            name="Joint to savings",
+            from_account=self.joint,
+            to_account=self.savings,
+            amount=Decimal("500"),
+            frequency="monthly",
+            calc_method=Transfer.CalcMethod.FIXED,
+        )
+
+    def _resolve(self) -> dict[int, Decimal]:
+        accounts = list(
+            Account.objects.prefetch_related(
+                "income_streams", "outgoings", "transfers_in", "transfers_out", "one_off_outgoings"
+            )
+        )
+        return resolve_transfer_amounts(accounts, self.mode, self.period)
+
+    def test_split_shares_by_salary_difference(self) -> None:
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        b_to_joint = Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        amounts = self._resolve()
+        # required = 1500 bills + 500 to savings - 0 income = 2000; mean salary = 2500
+        assert amounts[a_to_joint.id] == Decimal("1500")  # 1000 + (3000 - 2500)
+        assert amounts[b_to_joint.id] == Decimal("500")  # 1000 - (3000 - 2500)... i.e. 1000 - 500
+
+    def test_surplus_sweeps_the_remainder_after_the_split_contribution(self) -> None:
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        b_to_joint = Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        a_to_spends = Transfer.objects.create(
+            name="A to spends", from_account=self.a, to_account=self.spends, calc_method=Transfer.CalcMethod.SURPLUS
+        )
+        b_to_spends = Transfer.objects.create(
+            name="B to spends", from_account=self.b, to_account=self.spends, calc_method=Transfer.CalcMethod.SURPLUS
+        )
+        amounts = self._resolve()
+        assert amounts[a_to_spends.id] == Decimal("3000") - amounts[a_to_joint.id]
+        assert amounts[b_to_spends.id] == Decimal("2000") - amounts[b_to_joint.id]
+
+        summary = budget_summary(self.mode, self.period)
+        joint_summary = next(s for s in summary.accounts if s.account.id == self.joint.id)
+        assert joint_summary.net == Decimal("0")
+
+    def test_negative_share_clamps_to_zero(self) -> None:
+        # Joint's own income already covers bills + the savings transfer, so
+        # the funding need (and each split share) should clamp at zero.
+        IncomeStream.objects.create(
+            name="Joint income", amount=Decimal("5000"), frequency="monthly", account=self.joint
+        )
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        b_to_joint = Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        amounts = self._resolve()
+        # Without clamping, B's share would be 0 - (3000-2500) = -500.
+        assert amounts[b_to_joint.id] == Decimal("0")
+        assert amounts[a_to_joint.id] == Decimal("500")
+
+
 class PotProgressTests(TestCase):
     def test_behind_when_saved_less_than_expected(self) -> None:
         pot = Pot.objects.create(
@@ -598,6 +686,7 @@ class NewCrudSmokeTests(TestCase):
             reverse("budget:transfer_add"),
             {
                 "name": "Joint contribution",
+                "calc_method": "fixed",
                 "amount": "200",
                 "frequency": "monthly",
                 "from_account": personal.id,

@@ -27,7 +27,8 @@ class IncomeStreamAdmin(admin.ModelAdmin):
 
 @admin.register(Transfer)
 class TransferAdmin(admin.ModelAdmin):
-    list_display = ("name", "from_account", "to_account", "amount", "frequency")
+    list_display = ("name", "from_account", "to_account", "calc_method", "amount", "frequency")
+    list_filter = ("calc_method",)
 
 
 @admin.register(OutgoingCategory)

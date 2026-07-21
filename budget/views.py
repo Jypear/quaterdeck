@@ -50,6 +50,7 @@ from budget.services import (
     budget_summary,
     outgoings_percentage,
     pot_progress,
+    resolve_transfer_amounts,
     to_display,
 )
 from core.models import Settings
@@ -136,6 +137,7 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
     }
     pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
     accounts = list(accounts)
+    transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     for account in accounts:
         for outgoing in account.outgoings.all():
             outgoing.variance = variances.get(outgoing.id)
@@ -143,11 +145,13 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
             if oneoff.linked_pot_id:
                 oneoff.pot_saved = pot_saved.get(oneoff.linked_pot_id, ZERO)
                 oneoff.pot_covered = oneoff.pot_saved >= oneoff.amount
+        for transfer in (*account.transfers_out.all(), *account.transfers_in.all()):
+            transfer.effective_amount = transfer_amounts.get(transfer.id, ZERO)
 
     return {
         "mode": mode,
         "mode_choices": Settings.BudgetMode.choices,
-        "account_summaries": [account_summary(a, mode, period) for a in accounts],
+        "account_summaries": [account_summary(a, mode, period, transfer_amounts) for a in accounts],
         "currency": settings.currency,
     }
 
@@ -278,11 +282,12 @@ class TimelineView(TemplateView):
         account_ids = _requested_account_ids(self.request)
         months = _requested_months(self.request)
 
-        start = active_period(settings.budget_mode, settings.budget_start_day).start
+        current_period = active_period(settings.budget_mode, settings.budget_start_day)
+        start = current_period.start
         end_year, end_month = _shift_month(start.year, start.month, months)
         end = _monthly_anchor(end_year, end_month, start.day)
 
-        lanes = account_timelines(start, end, account_ids)
+        lanes = account_timelines(start, end, account_ids, mode=settings.budget_mode, period=current_period)
 
         context["svg"] = _timeline_svg(lanes, start, end)
         context["all_accounts"] = Account.objects.filter(is_active=True)

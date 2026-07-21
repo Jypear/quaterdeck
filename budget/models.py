@@ -97,10 +97,29 @@ class IncomeStream(FrequencyMixin):
 
 
 class Transfer(FrequencyMixin):
+    """A recurring account-to-account transfer.
+
+    `calc_method` controls how the per-period amount is derived:
+      - fixed:   `amount` normalised by `frequency`, as before.
+      - split:   this account's salary-ratio share of `to_account`'s funding
+                 need, split across all `split` transfers into the same account.
+      - surplus: whatever is left in `from_account` after everything else.
+
+    For `split`/`surplus`, `amount` is unused (the engine computes it fresh
+    each period — see `services.resolve_transfer_amounts`); `frequency` and
+    the scheduling fields still place it on the calendar/timeline.
+    """
+
+    class CalcMethod(models.TextChoices):
+        FIXED = "fixed", "Fixed amount"
+        SPLIT = "split", "Salary-ratio split of destination's need"
+        SURPLUS = "surplus", "Sweep source account's surplus"
+
     name = models.CharField(max_length=200)
     from_account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="transfers_out")
     to_account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="transfers_in")
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    calc_method = models.CharField(max_length=10, choices=CalcMethod, default=CalcMethod.FIXED)
 
     class Meta:
         ordering = ["name"]

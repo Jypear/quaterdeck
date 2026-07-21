@@ -79,7 +79,14 @@
         <ul class="list-group list-group-flush small mb-2">
           {% for transfer in row.account.transfers_out.all %}
           <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <span>To {{ transfer.to_account }} — {{ currency }} {{ transfer.amount|floatformat:2 }} / {{ transfer.get_frequency_display }}</span>
+            <span>
+              To {{ transfer.to_account }} — {{ currency }} {{ transfer.effective_amount|floatformat:2 }}
+              {% if transfer.calc_method == "fixed" %}
+              / {{ transfer.get_frequency_display }}
+              {% else %}
+              <span class="badge bg-info text-dark">{{ transfer.get_calc_method_display }}</span>
+              {% endif %}
+            </span>
             <span>
               <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary">Edit</a>
               <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1">Delete</a>
@@ -88,7 +95,12 @@
           {% endfor %}
           {% for transfer in row.account.transfers_in.all %}
           <li class="list-group-item px-0 text-muted">
-            From {{ transfer.from_account }} — {{ currency }} {{ transfer.amount|floatformat:2 }} / {{ transfer.get_frequency_display }}
+            From {{ transfer.from_account }} — {{ currency }} {{ transfer.effective_amount|floatformat:2 }}
+            {% if transfer.calc_method == "fixed" %}
+            / {{ transfer.get_frequency_display }}
+            {% else %}
+            <span class="badge bg-info text-dark">{{ transfer.get_calc_method_display }}</span>
+            {% endif %}
           </li>
           {% endfor %}
         </ul>
