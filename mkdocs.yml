@@ -4,6 +4,8 @@ repo_url: https://github.com/Jypear/quaterdeck
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
   features:
     - navigation.sections
     - content.code.copy
@@ -12,6 +14,9 @@ theme:
       toggle: { icon: material/brightness-7, name: Dark mode }
     - scheme: slate
       toggle: { icon: material/brightness-4, name: Light mode }
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search

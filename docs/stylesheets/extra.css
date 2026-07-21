@@ -1,0 +1,15 @@
+/* Match the app's own brand palette (static/css/quaterdeck.css) instead of
+   Material's default indigo. */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #8a5f17; /* brass-deep — light-mode primary in the app */
+  --md-primary-fg-color--light: #c8912f; /* brass */
+  --md-primary-fg-color--dark: #10233a; /* navy */
+  --md-accent-fg-color: #3e7c74; /* verdigris */
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #10233a; /* navy — dark-mode surface in the app */
+  --md-primary-fg-color--light: #182f4b;
+  --md-primary-fg-color--dark: #0a1420;
+  --md-accent-fg-color: #c8912f; /* brass — dark-mode primary in the app */
+}

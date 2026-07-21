@@ -1,6 +1,9 @@
-# quaterdeck
+<p align="center">
+  <img src="static/img/favicon.svg" alt="Quaterdeck logo" width="64" height="64">
+</p>
 
-Self-hosted personal life OS. Budget, plan, and manage projects from one place — with an AI-powered notes layer. Built with Django.
+<h1 align="center">Quaterdeck</h1>
+<p align="center">Self-hosted personal life OS. Budget, plan, and manage projects from one place — with an AI-powered notes layer. Built with Django.</p>
 
 ## Features
 
