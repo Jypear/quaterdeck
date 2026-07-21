@@ -1,0 +1,40 @@
+site_name: Quaterdeck
+site_description: Self-hosted personal life OS
+repo_url: https://github.com/Jypear/quaterdeck
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle: { icon: material/brightness-7, name: Dark mode }
+    - scheme: slate
+      toggle: { icon: material/brightness-4, name: Light mode }
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            show_source: false
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Getting started: guides/getting-started.md
+      - Architecture: guides/architecture.md
+      - Deployment: guides/deployment.md
+  - API reference:
+      - Budget: reference/budget.md
+      - Tasks: reference/tasks.md
+      - Projects: reference/projects.md
+      - Notes: reference/notes.md
+      - Webhooks: reference/webhooks.md
+      - AI: reference/ai.md
+      - Core: reference/core.md
+      - API: reference/api.md

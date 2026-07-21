@@ -46,6 +46,10 @@ uv run python manage.py test app.tests.TestClassName.test_method
 # Lint and format
 uv run ruff check .
 uv run ruff format .
+
+# Docs: live preview / strict build check
+uv run mkdocs serve
+uv run mkdocs build --strict
 ```
 
 ## Architecture
@@ -84,3 +88,17 @@ DRF REST API for all core resources. Inbound and outbound webhook support.
 - Bootstrap 5 must be served locally — no CDN links.
 - All financial amounts use `DecimalField` — never `FloatField`.
 - `ai_api_key` in Settings must be stored encrypted.
+
+## Documentation
+
+Docs are Markdown in `docs/`, built by MkDocs (config in `mkdocs.yml`, deps in the `docs`
+dependency group) and published to GitHub Pages by `.github/workflows/docs.yml` on every
+merge to `main` — live at https://jypear.github.io/quaterdeck/.
+
+- The **API reference** pages (`docs/reference/*.md`) are generated from module/class
+  docstrings via mkdocstrings — keep docstrings in `models.py`/`services.py`/etc.
+  accurate, since that's the primary source for those pages.
+- When a change adds or alters a user-facing feature, or changes something covered in
+  `docs/guides/`, update the relevant guide in the same change.
+- Preview locally with `uv run mkdocs serve`; `uv run mkdocs build --strict` is the same
+  check CI runs (fails on broken links/refs).

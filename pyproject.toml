@@ -21,6 +21,10 @@ dependencies = [
 dev = [
     "ruff>=0.4",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
 
 [tool.ruff]
 line-length = 120
