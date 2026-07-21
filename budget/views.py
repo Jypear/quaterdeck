@@ -209,7 +209,36 @@ def _requested_months(request: HttpRequest) -> int:
     return months if months in _TIMELINE_MONTH_CHOICES else 3
 
 
-def _timeline_svg(lanes: list[AccountLane], start: date, end: date) -> dict[str, Any]:
+def _label_dy(slot: int) -> float:
+    """Interleaved vertical offsets for stacked labels: above line, below
+    line, further above, further below, ..."""
+    level = slot // 2
+    return (-12 - 14 * level) if slot % 2 == 0 else (24 + 14 * level)
+
+
+def _assign_label_dys(labels: list[tuple[float, float]]) -> list[float]:
+    """labels = ordered (center_x, width). Returns a dy per label, placing
+    each in the first vertical slot that doesn't horizontally overlap an
+    earlier label already occupying that slot. Same-day stops share an x, so
+    without this every label after the first two rendered on top of each other.
+    ponytail: dense same-day clusters stack tall and can overflow the lane
+    height / bleed into the next lane; upgrade to leader lines or "+N" grouping
+    if that becomes a real problem."""
+    slot_xmax: list[float] = []  # last occupied right-edge per slot
+    dys: list[float] = []
+    for cx, w in labels:
+        xmin, xmax = cx - w / 2, cx + w / 2
+        for slot in range(len(slot_xmax) + 1):
+            if slot == len(slot_xmax):
+                slot_xmax.append(xmin - 1)  # new slot, always free
+            if slot_xmax[slot] <= xmin:
+                slot_xmax[slot] = xmax
+                dys.append(_label_dy(slot))
+                break
+    return dys
+
+
+def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: str) -> dict[str, Any]:
     """Geometry for the timeline SVG: lane rows of positioned stops, cross-lane
     transfer connectors, and month-boundary axis ticks. Kept in the view (not
     services) since it's presentation, not domain logic."""
@@ -231,9 +260,13 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date) -> dict[str,
         y = _TIMELINE_TOP_MARGIN + index * _TIMELINE_LANE_HEIGHT + _TIMELINE_LANE_HEIGHT / 2
         stops = []
         hover_points = []
-        for stop_index, stop in enumerate(lane.stops):
+        label_positions = []  # (center_x, estimated_width), same order as stops
+        for stop in lane.stops:
             cx = x_for(stop.date)
             balance_str = f"{stop.balance:.2f}"
+            amount_str = f"{stop.amount:+.2f}"
+            text = f"{stop.label} {currency}{amount_str}"
+            label_positions.append((cx, len(text) * 5.5 + 4))
             stops.append(
                 {
                     "x": cx,
@@ -241,14 +274,15 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date) -> dict[str,
                     "css": _TIMELINE_KIND_CSS[stop.kind],
                     "label": stop.label,
                     "date": stop.date,
-                    "amount_str": f"{stop.amount:+.2f}",
+                    "amount_str": amount_str,
                     "balance_str": balance_str,
-                    "above": stop_index % 2 == 0,
                 }
             )
             hover_points.append({"x": cx, "balance": balance_str, "date": stop.date.strftime("%d %b")})
             if stop.transfer_id is not None:
                 connector_points.setdefault((stop.transfer_id, stop.date), []).append((cx, y))
+        for stop, dy in zip(stops, _assign_label_dys(label_positions), strict=True):
+            stop["dy"] = dy
         lane_rows.append(
             {
                 "account": lane.account,
@@ -289,7 +323,7 @@ class TimelineView(TemplateView):
 
         lanes = account_timelines(start, end, account_ids, mode=settings.budget_mode, period=current_period)
 
-        context["svg"] = _timeline_svg(lanes, start, end)
+        context["svg"] = _timeline_svg(lanes, start, end, settings.currency)
         context["all_accounts"] = Account.objects.filter(is_active=True)
         context["selected_account_ids"] = account_ids
         context["months"] = months

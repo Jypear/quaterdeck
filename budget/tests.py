@@ -33,7 +33,7 @@ from budget.services import (
     scheduled_dates,
     to_display,
 )
-from budget.views import _requested_mode
+from budget.views import _assign_label_dys, _requested_mode
 from core.models import Settings
 
 
@@ -768,3 +768,17 @@ class DatePrefillTests(TestCase):
 
         response = self.client.get(reverse("budget:oneoff_add"), {"date": "nope"})
         assert "due_date" not in response.context["form"].initial
+
+
+class TimelineLabelStackingTests(TestCase):
+    """Regression: same-day timeline stops used to render labels on top of
+    each other (only every-other stop flipped above/below)."""
+
+    def test_overlapping_labels_get_distinct_vertical_slots(self) -> None:
+        # Three same-x, wide labels can't share any of the first two slots.
+        dys = _assign_label_dys([(100, 60), (100, 60), (100, 60)])
+        assert len(set(dys)) == 3
+
+    def test_non_overlapping_labels_reuse_the_first_slot(self) -> None:
+        dys = _assign_label_dys([(0, 20), (900, 20)])
+        assert dys == [-12, -12]

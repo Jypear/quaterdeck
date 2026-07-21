@@ -26,7 +26,7 @@
       <g class="timeline-stop {{ stop.css }}">
         <title>{{ stop.date|date:"D d M Y" }} — {{ stop.label }} — {{ currency }} {{ stop.amount_str }} — balance {{ currency }} {{ stop.balance_str }}</title>
         <circle cx="{{ stop.x }}" cy="{{ stop.y }}" r="6" />
-        <text x="{{ stop.x }}" y="{{ stop.y }}" class="timeline-stop-label" dy="{% if stop.above %}-12{% else %}24{% endif %}">
+        <text x="{{ stop.x }}" y="{{ stop.y }}" class="timeline-stop-label" dy="{{ stop.dy }}">
           {{ stop.label }} {{ currency }}{{ stop.amount_str }}
         </text>
       </g>
