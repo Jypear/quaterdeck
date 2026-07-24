@@ -1,5 +1,7 @@
 # Quaterdeck
 
+*Four decks, one helm.*
+
 Self-hosted personal life OS. Budget, plan, and manage projects from one place — with an
 AI-powered notes layer. Built with Django.
 
@@ -21,3 +23,8 @@ AI-powered notes layer. Built with Django.
 - Looking for a specific model or function? See the API reference in the nav.
 
 Source lives at [github.com/Jypear/quaterdeck](https://github.com/Jypear/quaterdeck).
+
+## About the name
+
+From the Latin *quattuor* ("four") — **Quaterdeck** carries the app's four pillars
+(budget, tasks, calendar, and notes) on a single command deck.
