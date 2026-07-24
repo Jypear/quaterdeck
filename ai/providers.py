@@ -42,6 +42,9 @@ class NullProvider(BaseAIProvider):
         return ""
 
 
+_TIMEOUT_SECONDS = 60  # keep under gunicorn's --timeout so we fail cleanly instead of getting SIGKILLed
+
+
 class AnthropicProvider(BaseAIProvider):
     def __init__(self, api_key: str, model: str) -> None:
         self._api_key = api_key
@@ -50,7 +53,7 @@ class AnthropicProvider(BaseAIProvider):
     def complete(self, prompt: str, *, system: str = "") -> str:
         import anthropic  # type: ignore[import-untyped]
 
-        client = anthropic.Anthropic(api_key=self._api_key)
+        client = anthropic.Anthropic(api_key=self._api_key, timeout=_TIMEOUT_SECONDS)
         message = client.messages.create(
             model=self._model,
             max_tokens=1024,
@@ -62,7 +65,7 @@ class AnthropicProvider(BaseAIProvider):
     def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:
         import anthropic  # type: ignore[import-untyped]
 
-        client = anthropic.Anthropic(api_key=self._api_key)
+        client = anthropic.Anthropic(api_key=self._api_key, timeout=_TIMEOUT_SECONDS)
         tools = [{"type": "web_search_20250305", "name": "web_search"}] if web_search else []
         with client.messages.stream(
             model=self._model,
@@ -82,7 +85,7 @@ class OpenAIProvider(BaseAIProvider):
     def complete(self, prompt: str, *, system: str = "") -> str:
         import openai  # type: ignore[import-untyped]
 
-        client = openai.OpenAI(api_key=self._api_key)
+        client = openai.OpenAI(api_key=self._api_key, timeout=_TIMEOUT_SECONDS)
         messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
         response = client.chat.completions.create(model=self._model, messages=messages)
         return response.choices[0].message.content or ""
@@ -90,7 +93,7 @@ class OpenAIProvider(BaseAIProvider):
     def stream(self, prompt: str, *, web_search: bool = False, system: str = "") -> Iterator[str]:
         import openai  # type: ignore[import-untyped]
 
-        client = openai.OpenAI(api_key=self._api_key)
+        client = openai.OpenAI(api_key=self._api_key, timeout=_TIMEOUT_SECONDS)
         tools = [{"type": "web_search"}] if web_search else []
         with client.responses.stream(model=self._model, input=prompt, instructions=system or None, tools=tools) as s:
             for event in s:
@@ -113,7 +116,7 @@ class OllamaProvider(BaseAIProvider):
             data=payload,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
             data = json.loads(resp.read())
         return data.get("response", "")
 
@@ -128,7 +131,7 @@ class OllamaProvider(BaseAIProvider):
             data=payload,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
             for line in resp:
                 if not line.strip():
                     continue
