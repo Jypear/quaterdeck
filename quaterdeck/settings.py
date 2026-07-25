@@ -19,6 +19,10 @@ DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
 
+# Django checks Origin against this, not ALLOWED_HOSTS — required for any
+# production host (e.g. https://quaterdeck.example.com,http://192.168.1.50:8000).
+CSRF_TRUSTED_ORIGINS = [origin for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
+
 # ---------------------------------------------------------------------------
 # Application definition
 # ---------------------------------------------------------------------------

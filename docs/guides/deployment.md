@@ -12,6 +12,7 @@ Copy `.env.example` to `.env` and set at minimum:
 | `SECRET_KEY` | Required — the app won't start without it. Generate with `python -c "import secrets; print(secrets.token_urlsafe(50))"`. |
 | `DEBUG` | `True` for local dev, `False` in production. |
 | `ALLOWED_HOSTS` | Comma-separated hostnames the app will serve. |
+| `CSRF_TRUSTED_ORIGINS` | Comma-separated full origins (with scheme) you'll submit forms from, e.g. `https://quaterdeck.example.com`. Required in production or you'll get "CSRF verification failed" on any POST — Django checks this, not `ALLOWED_HOSTS`. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | PostgreSQL connection. |
 
 `ai_api_key` (configured in the Settings model via the UI, not `.env`) is stored
