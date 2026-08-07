@@ -104,6 +104,14 @@ h1, h2, h3, h4, h5, h6,
   vertical-align: -0.125em;
 }
 
+/* Icon-only action links (edit/delete, etc.) reuse Bootstrap's .link-* colour
+   utilities, which underline by default — fine for text links, but with no
+   visible text the underline just draws a stray line under the glyph. Text
+   links using the same classes (e.g. linked-project names) are unaffected. */
+a:has(> .icon:only-child) {
+  text-decoration: none;
+}
+
 /* Filled buttons are a minted brass chip regardless of page theme — the
    button supplies its own background, so it doesn't need to vary with
    light/dark like text and links do. */
