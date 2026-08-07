@@ -417,6 +417,7 @@ class BudgetSummary:
     adjusted_surplus: Decimal = ZERO
     pot_contributions: Decimal = ZERO
     unallocated_surplus: Decimal = ZERO
+    yearly_due: list[Outgoing] = field(default_factory=list)
 
 
 def prefetched_accounts(account_ids: Iterable[int] | None = None) -> list[Account]:
@@ -439,7 +440,10 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
     accounts are included). `adjusted_surplus` further deducts this period's
     outgoing variances and one-off payments. `unallocated_surplus` deducts
     what's already been logged into pots this period — the nudge-to-allocate
-    figure.
+    figure. `yearly_due` lists every yearly outgoing whose due date falls in
+    `period` regardless of its `yearly_billing` mode — a `spread` bill is
+    still worth flagging as actually due, even though its amount doesn't
+    spike.
     """
     accounts = prefetched_accounts(account_ids)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
@@ -469,6 +473,13 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
     )
     unallocated_surplus = adjusted_surplus - pot_contributions
 
+    yearly_due = [
+        o
+        for a in accounts
+        for o in a.outgoings.all()
+        if o.frequency == "yearly" and (due := _yearly_due(o, period.start)) is not None and due < period.end
+    ]
+
     return BudgetSummary(
         mode=mode,
         period=period,
@@ -481,6 +492,7 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
         adjusted_surplus=adjusted_surplus,
         pot_contributions=pot_contributions,
         unallocated_surplus=unallocated_surplus,
+        yearly_due=yearly_due,
     )
 
 

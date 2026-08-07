@@ -44,6 +44,7 @@ from budget.services import (
     TimelineStop,
     _monthly_anchor,
     _shift_month,
+    _yearly_due,
     account_summary,
     account_timelines,
     active_period,
@@ -123,7 +124,9 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
     simpler than a template dict-lookup filter. Each pot-linked one-off or
     outgoing gets `.pot_saved` / `.pot_covered` (total saved in the linked pot
     vs. its amount, `None` when unlinked) so the accounts page can show a
-    covered/uncovered badge.
+    covered/uncovered badge. Each yearly outgoing gets `.due_this_period` so
+    the page can flag a bill that's actually due now, regardless of its
+    `yearly_billing` mode.
     """
     period = active_period(mode, settings.budget_start_day)
     accounts = Account.objects.filter(is_active=True).prefetch_related(
@@ -147,6 +150,8 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
             pot_id = pot_for_outgoing.get(outgoing.id)
             outgoing.pot_covered = pot_saved.get(pot_id, ZERO) >= outgoing.amount if pot_id else None
             outgoing.pot_saved = pot_saved.get(pot_id, ZERO) if pot_id else None
+            due = _yearly_due(outgoing, period.start) if outgoing.frequency == "yearly" else None
+            outgoing.due_this_period = due is not None and due < period.end
         for oneoff in account.one_off_outgoings.all():
             if oneoff.linked_pot_id:
                 oneoff.pot_saved = pot_saved.get(oneoff.linked_pot_id, ZERO)
