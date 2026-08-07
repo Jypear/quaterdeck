@@ -41,6 +41,7 @@ from budget.services import (
     AccountLane,
     FlowGraph,
     Period,
+    TimelineStop,
     _monthly_anchor,
     _shift_month,
     account_summary,
@@ -60,9 +61,12 @@ if TYPE_CHECKING:
 
 _TIMELINE_MONTH_CHOICES = (1, 3, 6)
 _TIMELINE_CHART_LEFT = 20
-_TIMELINE_CHART_WIDTH = 940
+_TIMELINE_MIN_CHART_WIDTH = 940
+_TIMELINE_PX_PER_DAY = 10  # widens the chart at longer horizons so days don't visually merge
 _TIMELINE_TOP_MARGIN = 40
 _TIMELINE_LANE_HEIGHT = 110
+_TIMELINE_MAX_LABEL_SLOTS = 3  # caps stacked labels at ±38px, safely inside one lane
+_TIMELINE_MAX_MARKER_RADIUS = 10
 
 _TIMELINE_KIND_CSS = {
     "income": "timeline-stop-income",
@@ -216,36 +220,53 @@ def _label_dy(slot: int) -> float:
     return (-12 - 14 * level) if slot % 2 == 0 else (24 + 14 * level)
 
 
-def _assign_label_dys(labels: list[tuple[float, float]]) -> list[float]:
+def _assign_label_dys(labels: list[tuple[float, float]]) -> list[float | None]:
     """labels = ordered (center_x, width). Returns a dy per label, placing
-    each in the first vertical slot that doesn't horizontally overlap an
-    earlier label already occupying that slot. Same-day stops share an x, so
-    without this every label after the first two rendered on top of each other.
-    ponytail: dense same-day clusters stack tall and can overflow the lane
-    height / bleed into the next lane; upgrade to leader lines or "+N" grouping
-    if that becomes a real problem."""
+    each in the first vertical slot (up to `_TIMELINE_MAX_LABEL_SLOTS`) that
+    doesn't horizontally overlap an earlier label already occupying that
+    slot. Same-day stops share an x, so without this every label after the
+    first two rendered on top of each other.
+    Labels that don't fit in any of the capped slots get `None` (no label
+    rendered — the marker's count badge and the click-through detail panel
+    carry the info instead), so a dense day can never stack tall enough to
+    bleed into the lane above or below.
+    ponytail: labels beyond the cap silently disappear rather than
+    truncating/wrapping; revisit with leader lines if that turns out to
+    hide something the count badge doesn't already convey."""
     slot_xmax: list[float] = []  # last occupied right-edge per slot
-    dys: list[float] = []
+    dys: list[float | None] = []
     for cx, w in labels:
         xmin, xmax = cx - w / 2, cx + w / 2
-        for slot in range(len(slot_xmax) + 1):
+        placed = False
+        for slot in range(min(len(slot_xmax) + 1, _TIMELINE_MAX_LABEL_SLOTS)):
             if slot == len(slot_xmax):
                 slot_xmax.append(xmin - 1)  # new slot, always free
             if slot_xmax[slot] <= xmin:
                 slot_xmax[slot] = xmax
                 dys.append(_label_dy(slot))
+                placed = True
                 break
+        if not placed:
+            dys.append(None)
     return dys
 
 
 def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: str) -> dict[str, Any]:
-    """Geometry for the timeline SVG: lane rows of positioned stops, cross-lane
+    """Geometry for the timeline SVG: lane rows of positioned markers, cross-lane
     transfer connectors, and month-boundary axis ticks. Kept in the view (not
-    services) since it's presentation, not domain logic."""
+    services) since it's presentation, not domain logic.
+
+    Stops are clustered per (lane, date) into a single marker — same-day
+    entries in one account would otherwise resolve to the same x and render
+    as indistinguishable overlapping circles. A cluster's entries (for the
+    click-through detail panel) are returned separately, keyed by marker id,
+    since the SVG itself has no good way to hold a variable-length list.
+    """
     total_days = (end - start).days or 1
+    chart_width = max(_TIMELINE_MIN_CHART_WIDTH, total_days * _TIMELINE_PX_PER_DAY)
 
     def x_for(d: date) -> float:
-        return _TIMELINE_CHART_LEFT + (d - start).days / total_days * _TIMELINE_CHART_WIDTH
+        return _TIMELINE_CHART_LEFT + (d - start).days / total_days * chart_width
 
     axis_ticks = []
     year, month = start.year, start.month
@@ -255,41 +276,65 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
         year, month = _shift_month(year, month, 1)
 
     lane_rows = []
+    cluster_details: dict[str, dict[str, Any]] = {}
     connector_points: dict[tuple[int, date], list[tuple[float, float]]] = {}
     for index, lane in enumerate(lanes):
         y = _TIMELINE_TOP_MARGIN + index * _TIMELINE_LANE_HEIGHT + _TIMELINE_LANE_HEIGHT / 2
-        stops = []
-        hover_points = []
-        label_positions = []  # (center_x, estimated_width), same order as stops
+
+        day_groups: dict[date, list[TimelineStop]] = {}
         for stop in lane.stops:
-            cx = x_for(stop.date)
-            balance_str = f"{stop.balance:.2f}"
-            amount_str = f"{stop.amount:+.2f}"
-            text = f"{stop.label} {currency}{amount_str}"
-            label_positions.append((cx, len(text) * 5.5 + 4))
-            stops.append(
+            day_groups.setdefault(stop.date, []).append(stop)
+            if stop.transfer_id is not None:
+                connector_points.setdefault((stop.transfer_id, stop.date), []).append((x_for(stop.date), y))
+
+        clusters = []
+        hover_points = []
+        label_positions = []  # (center_x, estimated_width), same order as clusters
+        for day_index, (d, day_stops) in enumerate(sorted(day_groups.items())):
+            cx = x_for(d)
+            count = len(day_stops)
+            net = sum((s.amount for s in day_stops), ZERO)
+            balance_str = f"{day_stops[-1].balance:.2f}"
+            cluster_id = f"cl-{index}-{day_index}"
+            if count == 1:
+                css = _TIMELINE_KIND_CSS[day_stops[0].kind]
+                label = f"{day_stops[0].label} {currency}{day_stops[0].amount:+.2f}"
+            else:
+                css = _TIMELINE_KIND_CSS["income"] if net >= 0 else _TIMELINE_KIND_CSS["outgoing"]
+                label = f"{count} entries {currency}{net:+.2f}"
+            label_positions.append((cx, len(label) * 5.5 + 4))
+            clusters.append(
                 {
+                    "id": cluster_id,
                     "x": cx,
                     "y": y,
-                    "css": _TIMELINE_KIND_CSS[stop.kind],
-                    "label": stop.label,
-                    "date": stop.date,
-                    "amount_str": amount_str,
+                    "r": 6 if count == 1 else min(6 + (count - 1) * 1.5, _TIMELINE_MAX_MARKER_RADIUS),
+                    "count": count,
+                    "css": css,
+                    "label": label,
+                    "date": d,
                     "balance_str": balance_str,
                 }
             )
-            hover_points.append({"x": cx, "balance": balance_str, "date": stop.date.strftime("%d %b")})
-            if stop.transfer_id is not None:
-                connector_points.setdefault((stop.transfer_id, stop.date), []).append((cx, y))
-        for stop, dy in zip(stops, _assign_label_dys(label_positions), strict=True):
-            stop["dy"] = dy
+            hover_points.append({"x": cx, "balance": balance_str, "date": d.strftime("%d %b")})
+            cluster_details[cluster_id] = {
+                "account": lane.account.name,
+                "date": d.strftime("%a %d %b %Y"),
+                "balance_str": balance_str,
+                "entries": [
+                    {"label": s.label, "amount_str": f"{s.amount:+.2f}", "css": _TIMELINE_KIND_CSS[s.kind]}
+                    for s in day_stops
+                ],
+            }
+        for cluster, dy in zip(clusters, _assign_label_dys(label_positions), strict=True):
+            cluster["label_dy"] = dy
         lane_rows.append(
             {
                 "account": lane.account,
                 "y": y,
                 "name_y": y - _TIMELINE_LANE_HEIGHT / 2 + 18,
                 "balance_y": y + _TIMELINE_LANE_HEIGHT / 2 - 10,
-                "stops": stops,
+                "clusters": clusters,
                 "end_balance_str": f"{lane.end_balance:.2f}",
                 "hover_id": f"lane-hover-{index}",
                 "hover_points": hover_points,
@@ -303,7 +348,14 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
             connectors.append({"x": x, "y1": y1, "y2": y2})
 
     height = _TIMELINE_TOP_MARGIN + _TIMELINE_LANE_HEIGHT * len(lanes) + 20
-    return {"width": 1000, "height": height, "lanes": lane_rows, "connectors": connectors, "axis_ticks": axis_ticks}
+    return {
+        "width": chart_width + _TIMELINE_CHART_LEFT,
+        "height": height,
+        "lanes": lane_rows,
+        "connectors": connectors,
+        "axis_ticks": axis_ticks,
+        "cluster_details": cluster_details,
+    }
 
 
 class TimelineView(TemplateView):
