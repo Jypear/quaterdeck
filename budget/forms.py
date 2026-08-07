@@ -33,7 +33,13 @@ class AccountForm(_BootstrapModelForm):
         fields: ClassVar[list[str]] = ["name", "account_type", "is_active"]
 
 
-_RECURRING_SCHEDULE_FIELDS: list[str] = ["recurring_day", "weekend_adjust", "week_interval", "week_anchor"]
+_RECURRING_SCHEDULE_FIELDS: list[str] = [
+    "recurring_day",
+    "recurring_month",
+    "weekend_adjust",
+    "week_interval",
+    "week_anchor",
+]
 _RECURRING_SCHEDULE_WIDGETS: dict[str, Any] = {
     # x-model drives the weekly/monthly x-show toggles in templates/budget/_form.html.
     "frequency": forms.Select(attrs={"x-model": "frequency"}),
@@ -48,6 +54,7 @@ class _RecurringScheduleCleanMixin(forms.ModelForm):
         cleaned_data = super().clean()
         frequency = cleaned_data.get("frequency")
         recurring_day = cleaned_data.get("recurring_day")
+        recurring_month = cleaned_data.get("recurring_month")
         week_interval = cleaned_data.get("week_interval") or 1
         week_anchor = cleaned_data.get("week_anchor")
 
@@ -55,6 +62,12 @@ class _RecurringScheduleCleanMixin(forms.ModelForm):
             max_day = 7 if frequency == "weekly" else 31
             if not (1 <= recurring_day <= max_day):
                 self.add_error("recurring_day", f"Must be between 1 and {max_day} for {frequency} frequency.")
+
+        if recurring_month is not None and not (1 <= recurring_month <= 12):
+            self.add_error("recurring_month", "Must be between 1 and 12.")
+
+        if frequency == "yearly" and recurring_day is not None and recurring_month is None:
+            self.add_error("recurring_month", "Required to schedule a yearly entry.")
 
         if week_interval > 1 and week_anchor is None:
             self.add_error("week_anchor", "Required when the interval is more than 1 week.")
@@ -79,8 +92,17 @@ class OutgoingForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
             "category",
             "account",
             *_RECURRING_SCHEDULE_FIELDS,
+            "yearly_billing",
         ]
         widgets: ClassVar[dict[str, Any]] = _RECURRING_SCHEDULE_WIDGETS
+
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()
+        billing = cleaned_data.get("yearly_billing")
+        needs_due_date = cleaned_data.get("recurring_day") is None or cleaned_data.get("recurring_month") is None
+        if billing and billing != Outgoing.YearlyBilling.SPREAD and needs_due_date:
+            self.add_error("yearly_billing", "Requires a recurring day and month to schedule the due date.")
+        return cleaned_data
 
 
 class TransferForm(_RecurringScheduleCleanMixin, _BootstrapModelForm):
@@ -133,6 +155,7 @@ class PotForm(_BootstrapModelForm):
             "monthly_target",
             "linked_project",
             "linked_one_off",
+            "linked_outgoing",
         ]
         widgets: ClassVar[dict[str, Any]] = {
             "target_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),

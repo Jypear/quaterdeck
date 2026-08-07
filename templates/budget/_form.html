@@ -10,6 +10,7 @@
   <div class="mb-3"
        {% if field.name == "weekend_adjust" %}x-show="frequency !== 'weekly'"
        {% elif field.name == "week_interval" or field.name == "week_anchor" %}x-show="frequency === 'weekly'"
+       {% elif field.name == "recurring_month" or field.name == "yearly_billing" %}x-show="frequency === 'yearly'"
        {% elif form.calc_method and field.name == "amount" %}x-show="calc_method === 'fixed'"
        {% elif form.calc_method and field.name == "frequency" %}x-show="calc_method === 'fixed'"
        {% endif %}>

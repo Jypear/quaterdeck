@@ -32,6 +32,23 @@ duplicate. The difference (actual − budgeted) is that outgoing's **variance**,
 flows straight into the surplus calculation for that period — overspending on groceries
 this month reduces what's left over, even though the budgeted figure didn't change.
 
+**Yearly outgoings.** A yearly outgoing can be given a due month and day (e.g. an
+insurance renewal due 27 March), which also places it on the calendar and timeline. How
+its amount lands in the budget is controlled per-outgoing by **yearly billing**:
+
+- **Spread evenly** (the default) — the annual amount divided flatly across every
+  period, same as today. Existing yearly outgoings keep this behaviour until you change
+  it.
+- **Spread to due date** — divided across only the periods remaining until the next due
+  date, so the per-period figure grows the closer the bill gets rather than staying flat
+  all year.
+- **Due period only** — nothing until the period the bill is actually due, then the full
+  amount, counted as a normal outgoing (so it shows in that period's headline
+  outgoings/surplus figures rather than off to the side).
+
+A yearly outgoing left without a due day/month keeps spreading evenly regardless of which
+billing mode is selected — there's nowhere else to put the money.
+
 ## Transfers
 
 Inter-account transfers are first-class entries, not outgoings — they move money from
@@ -51,11 +68,14 @@ one account to another and are visible from both ends. Each has a name, a
 
 ## One-off outgoings
 
-Future-dated single payments (a car service due in November, an annual insurance
-renewal) that only show up in the budget period they actually fall in — they don't
+Future-dated single payments (a car service due in November, a repair you know is
+coming) that only show up in the budget period they actually fall in — they don't
 clutter every period like a recurring outgoing would. A one-off can optionally be linked
 to a pot, so you can save toward it in advance; once linked, the Accounts page shows a
 covered/uncovered badge comparing the pot's saved balance against the payment amount.
+For something that recurs every year (an annual insurance renewal), a **yearly
+outgoing** with "due period only" billing (see above) is usually the better fit — it
+survives into next year automatically instead of needing to be recreated by hand.
 
 ## Overview: the budget summary
 
@@ -79,7 +99,10 @@ status:
   target to £X"** button if you want to accept the adjustment. Ignoring the nudge needs
   no action — it's a suggestion, never enforced.
 
-A pot can optionally link to a **Project** or to a **one-off outgoing** (see above).
+A pot can optionally link to a **Project**, a **one-off outgoing**, or a **yearly
+outgoing** (see above) — the same covered/uncovered badge appears wherever the linked
+bill is shown. Pot coverage is advisory only: it never deducts from the budget, so
+there's no double-counting between "money saved in the pot" and "bill due".
 
 ## Timeline
 
