@@ -741,3 +741,31 @@ def pot_progress(pot: Pot, mode: str, period: Period) -> PotProgress:
         remaining_periods=remaining_periods,
         per_period_needed=per_period_needed,
     )
+
+
+def upcoming_yearly_bills(accounts: Iterable[Account], today: date, months_ahead: int = 3) -> list[Outgoing]:
+    """Yearly outgoings due this calendar month or within the next `months_ahead`
+    calendar months of `today`, each annotated with `.due_date` and
+    `.months_away` (0 = due this month), soonest first.
+
+    Calendar months from `today` rather than budget periods — advance notice
+    ("due in 2 months") is a real-world countdown, not tied to the active
+    budget period/mode. `accounts` should come from `prefetched_accounts` to
+    avoid N+1 queries.
+    """
+    bills = []
+    for account in accounts:
+        for outgoing in account.outgoings.all():
+            if outgoing.frequency != "yearly":
+                continue
+            due = _yearly_due(outgoing, today)
+            if due is None:
+                continue
+            months_away = (due.year - today.year) * 12 + due.month - today.month
+            if months_away > months_ahead:
+                continue
+            outgoing.due_date = due
+            outgoing.months_away = months_away
+            bills.append(outgoing)
+    bills.sort(key=lambda o: o.due_date)
+    return bills

@@ -32,9 +32,11 @@ from budget.services import (
     outgoing_amount,
     periods_between,
     pot_progress,
+    prefetched_accounts,
     resolve_transfer_amounts,
     scheduled_dates,
     to_display,
+    upcoming_yearly_bills,
 )
 from budget.views import _assign_label_dys, _requested_mode, _timeline_svg
 from core.models import Settings
@@ -566,6 +568,53 @@ class OutgoingPotCoverageTests(TestCase):
         )
         outgoing = self._outgoing()
         assert outgoing.pot_covered is None
+
+
+class UpcomingYearlyBillsTests(TestCase):
+    """Dashboard heads-up: yearly bills due this month or in the next few."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.today = date(2026, 6, 15)
+
+    def _yearly(self, **kwargs: object) -> Outgoing:
+        defaults = {
+            "name": "Bill",
+            "amount": Decimal("600"),
+            "category": self.category,
+            "account": self.account,
+            "frequency": "yearly",
+        }
+        defaults.update(kwargs)
+        return Outgoing.objects.create(**defaults)
+
+    def test_annotates_due_date_and_months_away_within_the_default_window(self) -> None:
+        this_month = self._yearly(name="Insurance", recurring_day=20, recurring_month=6)
+        next_month = self._yearly(name="MOT", recurring_day=1, recurring_month=7)
+        in_three = self._yearly(name="TV Licence", recurring_day=1, recurring_month=9)
+
+        bills = upcoming_yearly_bills(prefetched_accounts(), self.today)
+
+        assert [b.id for b in bills] == [this_month.id, next_month.id, in_three.id]
+        assert bills[0].due_date == date(2026, 6, 20)
+        assert bills[0].months_away == 0
+        assert bills[1].months_away == 1
+        assert bills[2].months_away == 3
+
+    def test_excludes_bills_beyond_the_window_and_already_passed_this_year(self) -> None:
+        self._yearly(name="Too far out", recurring_day=1, recurring_month=10)  # 4 months away
+        self._yearly(name="Already happened", recurring_day=1, recurring_month=6)  # rolls to next year
+        self._yearly(name="Not scheduled")  # no recurring_month
+        Outgoing.objects.create(
+            name="Monthly rent", amount=Decimal("1000"), category=self.category, account=self.account
+        )  # not yearly
+
+        assert upcoming_yearly_bills(prefetched_accounts(), self.today) == []
+
+    def test_months_ahead_is_configurable(self) -> None:
+        self._yearly(name="TV Licence", recurring_day=1, recurring_month=9)  # 3 months away
+        assert upcoming_yearly_bills(prefetched_accounts(), self.today, months_ahead=2) == []
 
 
 class AccountSummaryTests(TestCase):
