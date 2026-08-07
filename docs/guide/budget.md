@@ -52,7 +52,10 @@ billing mode is selected — there's nowhere else to put the money.
 **Due-this-period visibility.** A yearly outgoing whose due date falls in the active
 period is called out wherever it matters, regardless of its billing mode: a warning
 banner on the Overview tab lists everything due, and its row on the Accounts page is
-highlighted with a "Due this period" badge.
+highlighted with a "Due this period" badge. The Dashboard goes further with a **Yearly
+bills** widget that gives advance notice — anything due this calendar month or within
+the next three, labelled "Due this month" / "Due in 1 month" / etc., soonest first —
+so a bill can't sneak up on you even outside the active budget period.
 
 ## Transfers
 

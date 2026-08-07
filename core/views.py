@@ -15,7 +15,14 @@ from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
 
 from budget.models import Pot
-from budget.services import active_period, budget_summary, outgoings_percentage, pot_progress
+from budget.services import (
+    active_period,
+    budget_summary,
+    outgoings_percentage,
+    pot_progress,
+    prefetched_accounts,
+    upcoming_yearly_bills,
+)
 from core.events import CalEvent, month_events
 from core.forms import SettingsForm
 from core.models import Settings
@@ -49,6 +56,8 @@ class DashboardView(TemplateView):
             key=lambda row: (row.status != "behind", row.pot.target_date),
         )[:3]
 
+        yearly_bills = upcoming_yearly_bills(prefetched_accounts(), today)[:5]
+
         context.update(
             {
                 "currency": settings.currency,
@@ -57,6 +66,7 @@ class DashboardView(TemplateView):
                 "outgoings_pct": outgoings_percentage(summary.total_income, summary.total_outgoings),
                 "upcoming_events": upcoming_events,
                 "pot_rows": pot_rows,
+                "yearly_bills": yearly_bills,
                 "open_tasks": Task.objects.exclude(status=Task.Status.DONE)[:5],
                 "recent_notes": Note.objects.all()[:5],
                 "projects": Project.objects.prefetch_related("tasks", "pots")[:5],
