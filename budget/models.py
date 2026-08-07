@@ -8,7 +8,7 @@ Hierarchy:
     ├─ OneOffOutgoing (future-dated single payment)
     └─ Transfer (from_account → to_account)
 
-  Pot  (savings goal; optionally linked to Project / OneOffOutgoing)
+  Pot  (savings goal; optionally linked to Project / Outgoing / OneOffOutgoing)
     └─ PotEntry  (actual amount saved in a given period)
 """
 
@@ -43,6 +43,11 @@ class FrequencyMixin(models.Model):
             "Day of month (1-31) for monthly/yearly; day of week (1=Mon...7=Sun) for "
             "weekly. Blank = unscheduled (won't appear on the calendar)."
         ),
+    )
+    recurring_month = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Yearly only: month (1-12) the payment falls in. Blank = unscheduled.",
     )
     weekend_adjust = models.CharField(
         max_length=6,
@@ -140,10 +145,22 @@ class OutgoingCategory(models.Model):
 
 
 class Outgoing(FrequencyMixin):
+    class YearlyBilling(models.TextChoices):
+        SPREAD = "spread", "Spread evenly across every period"
+        SPREAD_TO_DUE = "spread_to_due", "Spread across the periods left until it's due"
+        DUE_PERIOD = "due_period", "Charge in full in the period it's due"
+
     name = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     category = models.ForeignKey(OutgoingCategory, on_delete=models.PROTECT, related_name="outgoings")
     account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="outgoings")
+    yearly_billing = models.CharField(
+        max_length=13,
+        choices=YearlyBilling,
+        default=YearlyBilling.SPREAD,
+        blank=True,
+        help_text="Yearly only: how the amount is spread across budget periods.",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -217,6 +234,13 @@ class Pot(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="pots",
+    )
+    linked_outgoing = models.ForeignKey(
+        Outgoing,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pots_linked",
     )
 
     class Meta:

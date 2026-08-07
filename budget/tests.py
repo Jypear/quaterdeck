@@ -29,6 +29,7 @@ from budget.services import (
     budget_flow,
     budget_summary,
     normalise,
+    outgoing_amount,
     periods_between,
     pot_progress,
     resolve_transfer_amounts,
@@ -398,6 +399,154 @@ class BudgetSummaryTests(TestCase):
         summary = budget_summary(self.mode, self.period)
         assert summary.pot_contributions == Decimal("100")
         assert summary.unallocated_surplus == summary.adjusted_surplus - Decimal("100")
+
+
+class YearlyOutgoingTests(TestCase):
+    """`recurring_month` scheduling and the three `yearly_billing` modes."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+
+    def _yearly(self, **kwargs: object) -> Outgoing:
+        defaults = {
+            "name": "Insurance",
+            "amount": Decimal("600"),
+            "category": self.category,
+            "account": self.account,
+            "frequency": "yearly",
+        }
+        defaults.update(kwargs)
+        return Outgoing.objects.create(**defaults)
+
+    def test_scheduled_dates_places_yearly_entry_on_its_month_and_day(self) -> None:
+        entry = self._yearly(recurring_day=27, recurring_month=3)
+        window = (date(2026, 1, 1), date(2027, 1, 1))
+        assert scheduled_dates(entry, *window) == [date(2026, 3, 27)]
+
+    def test_scheduled_dates_applies_weekend_adjust(self) -> None:
+        # 2026-08-01 is a Saturday.
+        entry = self._yearly(recurring_day=1, recurring_month=8, weekend_adjust="after")
+        window = (date(2026, 1, 1), date(2027, 1, 1))
+        assert scheduled_dates(entry, *window) == [date(2026, 8, 3)]
+
+    def test_scheduled_dates_clamps_29_feb_in_a_non_leap_year(self) -> None:
+        entry = self._yearly(recurring_day=29, recurring_month=2)
+        window = (date(2026, 1, 1), date(2027, 1, 1))  # 2026 is not a leap year.
+        assert scheduled_dates(entry, *window) == [date(2026, 2, 28)]
+
+    def test_scheduled_dates_returns_one_occurrence_per_year_in_window(self) -> None:
+        entry = self._yearly(recurring_day=27, recurring_month=3)
+        window = (date(2026, 1, 1), date(2028, 1, 1))
+        assert scheduled_dates(entry, *window) == [date(2026, 3, 27), date(2027, 3, 27)]
+
+    def test_scheduled_dates_empty_without_a_month(self) -> None:
+        entry = self._yearly(recurring_day=27)
+        window = (date(2026, 1, 1), date(2027, 1, 1))
+        assert scheduled_dates(entry, *window) == []
+
+    def test_spread_matches_plain_normalise(self) -> None:
+        entry = self._yearly(recurring_day=27, recurring_month=3)
+        period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        assert outgoing_amount(entry, "monthly", period) == normalise(entry.amount, "yearly", "monthly")
+
+    def test_due_period_charges_full_amount_only_in_the_due_period(self) -> None:
+        entry = self._yearly(recurring_day=15, recurring_month=9, yearly_billing="due_period")
+        assert outgoing_amount(entry, "monthly", Period(date(2026, 8, 1), date(2026, 9, 1))) == Decimal("0")
+        assert outgoing_amount(entry, "monthly", Period(date(2026, 9, 1), date(2026, 10, 1))) == Decimal("600")
+        assert outgoing_amount(entry, "monthly", Period(date(2026, 10, 1), date(2026, 11, 1))) == Decimal("0")
+
+    def test_due_period_boundary_lands_in_the_period_that_starts_on_the_due_date(self) -> None:
+        entry = self._yearly(recurring_day=1, recurring_month=8, yearly_billing="due_period")
+        assert outgoing_amount(entry, "monthly", Period(date(2026, 7, 1), date(2026, 8, 1))) == Decimal("0")
+        assert outgoing_amount(entry, "monthly", Period(date(2026, 8, 1), date(2026, 9, 1))) == Decimal("600")
+
+    def test_spread_to_due_divides_across_remaining_periods(self) -> None:
+        entry = self._yearly(recurring_day=1, recurring_month=10, yearly_billing="spread_to_due")
+        period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        assert outgoing_amount(entry, "monthly", period) == Decimal("200")
+
+    def test_non_spread_billing_falls_back_to_spread_when_unscheduled(self) -> None:
+        entry = self._yearly(yearly_billing="due_period")
+        period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        assert outgoing_amount(entry, "monthly", period) == normalise(entry.amount, "yearly", "monthly")
+
+    def test_yearly_budget_mode_charges_full_amount_under_every_billing_mode(self) -> None:
+        period = Period(date(2026, 1, 1), date(2027, 1, 1))
+        for billing in ("spread", "spread_to_due", "due_period"):
+            entry = self._yearly(recurring_day=15, recurring_month=6, yearly_billing=billing)
+            assert outgoing_amount(entry, "yearly", period) == Decimal("600")
+
+    def test_due_period_feeds_total_outgoings(self) -> None:
+        self._yearly(recurring_day=15, recurring_month=9, yearly_billing="due_period")
+        summary = budget_summary("monthly", Period(date(2026, 9, 1), date(2026, 10, 1)))
+        assert summary.total_outgoings == Decimal("600")
+        summary = budget_summary("monthly", Period(date(2026, 8, 1), date(2026, 9, 1)))
+        assert summary.total_outgoings == Decimal("0")
+
+
+class OutgoingPotCoverageTests(TestCase):
+    """Pot-linked yearly outgoings get a computed `.pot_covered` / `.pot_saved` via
+    `_accounts_context`, mirroring `OneOffPotCoverageTests` for one-offs."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.pot = Pot.objects.create(
+            name="Insurance fund",
+            target_amount=Decimal("600"),
+            target_date=date(2027, 1, 1),
+            monthly_target=Decimal("50"),
+        )
+
+    def _outgoing(self) -> Outgoing:
+        response = self.client.get(reverse("budget:accounts"))
+        assert response.status_code == 200
+        summary = next(s for s in response.context["account_summaries"] if s.account.id == self.account.id)
+        return next(iter(summary.account.outgoings.all()))
+
+    def test_covered_when_pot_balance_meets_amount(self) -> None:
+        PotEntry.objects.create(pot=self.pot, period_start=date(2026, 7, 1), actual_amount=Decimal("600"))
+        Outgoing.objects.create(
+            name="Insurance",
+            amount=Decimal("600"),
+            category=self.category,
+            account=self.account,
+            frequency="yearly",
+            recurring_day=15,
+            recurring_month=9,
+            yearly_billing="due_period",
+        )
+        self.pot.linked_outgoing = Outgoing.objects.get(name="Insurance")
+        self.pot.save()
+        outgoing = self._outgoing()
+        assert outgoing.pot_saved == Decimal("600")
+        assert outgoing.pot_covered is True
+
+    def test_uncovered_when_pot_balance_below_amount(self) -> None:
+        PotEntry.objects.create(pot=self.pot, period_start=date(2026, 7, 1), actual_amount=Decimal("100"))
+        outgoing = Outgoing.objects.create(
+            name="Insurance",
+            amount=Decimal("600"),
+            category=self.category,
+            account=self.account,
+            frequency="yearly",
+            recurring_day=15,
+            recurring_month=9,
+            yearly_billing="due_period",
+        )
+        self.pot.linked_outgoing = outgoing
+        self.pot.save()
+        result = self._outgoing()
+        assert result.pot_saved == Decimal("100")
+        assert result.pot_covered is False
+
+    def test_unlinked_outgoing_has_no_coverage(self) -> None:
+        Outgoing.objects.create(
+            name="Insurance", amount=Decimal("600"), category=self.category, account=self.account, frequency="yearly"
+        )
+        outgoing = self._outgoing()
+        assert outgoing.pot_covered is None
 
 
 class AccountSummaryTests(TestCase):

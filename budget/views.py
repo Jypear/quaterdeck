@@ -120,9 +120,10 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
 
     Each outgoing gets a `.variance` attribute (the current period's
     OutgoingVariance, or None) set directly on the prefetched instance —
-    simpler than a template dict-lookup filter. Each pot-linked one-off gets
-    `.pot_saved` / `.pot_covered` (total saved in the linked pot vs. its
-    amount) so the accounts page can show a covered/uncovered badge.
+    simpler than a template dict-lookup filter. Each pot-linked one-off or
+    outgoing gets `.pot_saved` / `.pot_covered` (total saved in the linked pot
+    vs. its amount, `None` when unlinked) so the accounts page can show a
+    covered/uncovered badge.
     """
     period = active_period(mode, settings.budget_start_day)
     accounts = Account.objects.filter(is_active=True).prefetch_related(
@@ -137,11 +138,15 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
         for v in OutgoingVariance.objects.filter(period_start__gte=period.start, period_start__lt=period.end)
     }
     pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
+    pot_for_outgoing = dict(Pot.objects.filter(linked_outgoing__isnull=False).values_list("linked_outgoing_id", "id"))
     accounts = list(accounts)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     for account in accounts:
         for outgoing in account.outgoings.all():
             outgoing.variance = variances.get(outgoing.id)
+            pot_id = pot_for_outgoing.get(outgoing.id)
+            outgoing.pot_covered = pot_saved.get(pot_id, ZERO) >= outgoing.amount if pot_id else None
+            outgoing.pot_saved = pot_saved.get(pot_id, ZERO) if pot_id else None
         for oneoff in account.one_off_outgoings.all():
             if oneoff.linked_pot_id:
                 oneoff.pot_saved = pot_saved.get(oneoff.linked_pot_id, ZERO)

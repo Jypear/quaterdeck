@@ -94,9 +94,16 @@ def scheduled_dates(entry: RecurringEntry, start: date, end: date) -> list[date]
         return [d for d in _daterange(start, end) if _is_weekly_occurrence(d, entry)]
 
     if entry.frequency == "yearly":
-        # ponytail: yearly has no month field to place a day-of-month within
-        # the year, so it can't be scheduled yet. Add `recurring_month` if needed.
-        return []
+        if entry.recurring_month is None:
+            return []
+        dates = []
+        for year in range(start.year, end.year + 1):
+            anchor = _weekend_adjusted(
+                _monthly_anchor(year, entry.recurring_month, entry.recurring_day), entry.weekend_adjust
+            )
+            if start <= anchor < end:
+                dates.append(anchor)
+        return dates
 
     # monthly
     dates = []
@@ -176,12 +183,52 @@ def periods_between(start: date, end: date, mode: str) -> int:
     return max(1, months)
 
 
+def _yearly_due(entry: Outgoing, on_or_after: date) -> date | None:
+    """The next occurrence of `entry`'s yearly month/day on or after `on_or_after`,
+    or None if unscheduled (no day or month set)."""
+    if entry.recurring_day is None or entry.recurring_month is None:
+        return None
+    anchor = _weekend_adjusted(
+        _monthly_anchor(on_or_after.year, entry.recurring_month, entry.recurring_day), entry.weekend_adjust
+    )
+    if anchor >= on_or_after:
+        return anchor
+    return _weekend_adjusted(
+        _monthly_anchor(on_or_after.year + 1, entry.recurring_month, entry.recurring_day), entry.weekend_adjust
+    )
+
+
+def outgoing_amount(outgoing: Outgoing, mode: str, period: Period) -> Decimal:
+    """The per-`period` amount for a recurring `Outgoing`.
+
+    Non-yearly entries, and yearly entries left on the default `spread` billing,
+    are just `normalise(amount, frequency, mode)` — today's flat-amortised figure.
+    `spread_to_due` divides the amount across the periods remaining until the next
+    due date; `due_period` charges the full amount in the period containing that due
+    date and nothing elsewhere. An unscheduled yearly entry (no day/month set) falls
+    back to `spread` rather than silently dropping the amount.
+    """
+    spread = normalise(outgoing.amount, outgoing.frequency, mode)
+    if outgoing.frequency != "yearly" or outgoing.yearly_billing == Outgoing.YearlyBilling.SPREAD:
+        return spread
+
+    due = _yearly_due(outgoing, period.start)
+    if due is None:
+        return spread
+
+    if outgoing.yearly_billing == Outgoing.YearlyBilling.DUE_PERIOD:
+        return outgoing.amount if due < period.end else ZERO
+
+    # spread_to_due
+    return outgoing.amount / periods_between(period.start, due, mode)
+
+
 def _account_income(account: Account, mode: str) -> Decimal:
     return sum((normalise(i.amount, i.frequency, mode) for i in account.income_streams.all()), ZERO)
 
 
-def _account_outgoings(account: Account, mode: str) -> Decimal:
-    return sum((normalise(o.amount, o.frequency, mode) for o in account.outgoings.all()), ZERO)
+def _account_outgoings(account: Account, mode: str, period: Period) -> Decimal:
+    return sum((outgoing_amount(o, mode, period) for o in account.outgoings.all()), ZERO)
 
 
 def _account_one_offs(account: Account, period: Period) -> Decimal:
@@ -208,7 +255,7 @@ def _account_disposable(
     return (
         _account_income(account, mode)
         + other_in
-        - _account_outgoings(account, mode)
+        - _account_outgoings(account, mode, period)
         - other_out
         - _account_one_offs(account, period)
     )
@@ -270,7 +317,7 @@ def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Per
             continue
 
         required = (
-            _account_outgoings(dest, mode)
+            _account_outgoings(dest, mode, period)
             + _account_one_offs(dest, period)
             + sum(
                 (amounts[t.id] for t in dest.transfers_out.all() if t.calc_method == Transfer.CalcMethod.FIXED),
@@ -336,7 +383,7 @@ def account_summary(
     one_off_outgoings) to avoid N+1 queries across many accounts.
     """
     income = _account_income(account, mode)
-    outgoings = _account_outgoings(account, mode)
+    outgoings = _account_outgoings(account, mode, period)
     if transfer_amounts is None:
         transfers_in = sum((normalise(t.amount or ZERO, t.frequency, mode) for t in account.transfers_in.all()), ZERO)
         transfers_out = sum((normalise(t.amount or ZERO, t.frequency, mode) for t in account.transfers_out.all()), ZERO)
@@ -501,7 +548,7 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
             add_link(add_node(income.name, "income"), account_names[account.id], amount, "income")
 
         for outgoing in account.outgoings.all():
-            amount = normalise(outgoing.amount, outgoing.frequency, mode)
+            amount = outgoing_amount(outgoing, mode, period)
             add_link(account_names[account.id], add_node(outgoing.name, "bill"), amount, "bill")
 
         for one_off in account.one_off_outgoings.all():
@@ -529,7 +576,7 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
     account_surplus: dict[int, Decimal] = {}
     for account in accounts:
         income = _account_income(account, mode)
-        outgoings = _account_outgoings(account, mode)
+        outgoings = _account_outgoings(account, mode, period)
         one_offs = _account_one_offs(account, period)
         net = (
             income

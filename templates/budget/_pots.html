@@ -57,6 +57,9 @@
         {% if row.pot.linked_one_off %}
         <p class="small text-muted mb-0">Linked to: {{ row.pot.linked_one_off.name }}</p>
         {% endif %}
+        {% if row.pot.linked_outgoing %}
+        <p class="small text-muted mb-0">Linked to: {{ row.pot.linked_outgoing.name }}</p>
+        {% endif %}
       </div>
     </div>
   </div>
