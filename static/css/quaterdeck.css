@@ -302,6 +302,15 @@ h1, h2, h3, h4, h5, h6,
   stroke-dasharray: 4 3;
 }
 
+.timeline-stop {
+  cursor: pointer;
+}
+
+.timeline-stop:focus-visible {
+  outline: 2px solid var(--qd-brass);
+  outline-offset: 2px;
+}
+
 .timeline-stop circle {
   stroke: var(--bs-body-bg);
   stroke-width: 1.5;
@@ -311,6 +320,14 @@ h1, h2, h3, h4, h5, h6,
   font-size: 10px;
   fill: var(--bs-secondary-color);
   text-anchor: middle;
+}
+
+.timeline-stop-count {
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--bs-body-bg);
+  text-anchor: middle;
+  pointer-events: none;
 }
 
 .timeline-stop-income circle {

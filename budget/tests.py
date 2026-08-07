@@ -20,7 +20,9 @@ from budget.models import (
     Transfer,
 )
 from budget.services import (
+    AccountLane,
     Period,
+    TimelineStop,
     account_summary,
     account_timelines,
     active_period,
@@ -33,7 +35,7 @@ from budget.services import (
     scheduled_dates,
     to_display,
 )
-from budget.views import _assign_label_dys, _requested_mode
+from budget.views import _assign_label_dys, _requested_mode, _timeline_svg
 from core.models import Settings
 
 
@@ -782,3 +784,73 @@ class TimelineLabelStackingTests(TestCase):
     def test_non_overlapping_labels_reuse_the_first_slot(self) -> None:
         dys = _assign_label_dys([(0, 20), (900, 20)])
         assert dys == [-12, -12]
+
+    def test_labels_beyond_the_slot_cap_get_no_label(self) -> None:
+        # 5 same-x labels: only the first 3 (the cap) get a slot, the rest render no label.
+        dys = _assign_label_dys([(100, 60)] * 5)
+        assert all(dy is not None for dy in dys[:3])
+        assert dys[3:] == [None, None]
+
+
+class TimelineClusteringTests(TestCase):
+    """Regression: dense same-day entries used to render one overlapping,
+    indistinguishable circle+label per stop instead of a single marker."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+
+    def test_same_day_stops_collapse_into_one_badged_cluster(self) -> None:
+        stops = []
+        balance = Decimal("0")
+        for i in range(6):
+            balance -= Decimal("50")
+            stops.append(TimelineStop(date(2026, 7, 1), f"Bill {i}", Decimal("-50"), "outgoing", balance))
+        lane = AccountLane(account=self.account, stops=stops, end_balance=balance)
+
+        svg = _timeline_svg([lane], date(2026, 7, 1), date(2026, 8, 1), "£")
+        clusters = svg["lanes"][0]["clusters"]
+
+        assert len(clusters) == 1
+        cluster = clusters[0]
+        assert cluster["count"] == 6
+        assert cluster["balance_str"] == f"{balance:.2f}"
+
+        details = svg["cluster_details"][cluster["id"]]
+        assert len(details["entries"]) == 6
+        assert details["entries"][0]["label"] == "Bill 0"
+
+    def test_different_days_stay_as_separate_clusters(self) -> None:
+        stops = [
+            TimelineStop(date(2026, 7, 1), "Salary", Decimal("1000"), "income", Decimal("1000")),
+            TimelineStop(date(2026, 7, 15), "Rent", Decimal("-400"), "outgoing", Decimal("600")),
+        ]
+        lane = AccountLane(account=self.account, stops=stops, end_balance=Decimal("600"))
+
+        svg = _timeline_svg([lane], date(2026, 7, 1), date(2026, 8, 1), "£")
+        clusters = svg["lanes"][0]["clusters"]
+
+        assert len(clusters) == 2
+        assert all(c["count"] == 1 for c in clusters)
+
+    def test_chart_width_scales_with_horizon(self) -> None:
+        lane = AccountLane(account=self.account, stops=[], end_balance=Decimal("0"))
+        narrow = _timeline_svg([lane], date(2026, 7, 1), date(2026, 8, 1), "£")
+        wide = _timeline_svg([lane], date(2026, 7, 1), date(2027, 1, 1), "£")
+        assert wide["width"] > narrow["width"]
+
+    def test_dense_timeline_page_renders_cluster_details(self) -> None:
+        category = OutgoingCategory.objects.create(name="Bills")
+        for i in range(5):
+            Outgoing.objects.create(
+                name=f"Bill {i}",
+                amount=Decimal("50"),
+                category=category,
+                account=self.account,
+                frequency="monthly",
+                recurring_day=1,
+            )
+
+        response = self.client.get(reverse("budget:timeline"), {"months": 6})
+
+        assert response.status_code == 200
+        assert b"timeline-clusters" in response.content

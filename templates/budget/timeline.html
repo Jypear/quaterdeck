@@ -106,6 +106,52 @@
   });
 
   container.addEventListener("mouseleave", reset);
+
+  function escapeHtml(text) {
+    var div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showCluster(id) {
+    var script = document.getElementById("timeline-clusters");
+    var panel = document.getElementById("timeline-detail");
+    if (!script || !panel) return;
+    var data = JSON.parse(script.textContent)[id];
+    if (!data) return;
+    var lane = container.querySelector(".timeline-lane");
+    var currency = lane ? lane.dataset.currency : "";
+    var rows = data.entries.map(function (entry) {
+      return '<li class="list-group-item d-flex justify-content-between align-items-center ' + entry.css + '">' +
+        "<span>" + escapeHtml(entry.label) + "</span>" +
+        "<span>" + currency + " " + entry.amount_str + "</span></li>";
+    }).join("");
+    panel.innerHTML =
+      '<div class="card-header d-flex justify-content-between flex-wrap gap-2">' +
+      "<strong>" + escapeHtml(data.account) + " — " + escapeHtml(data.date) + "</strong>" +
+      "<span>Balance " + currency + " " + data.balance_str + "</span></div>" +
+      '<ul class="list-group list-group-flush">' + rows + "</ul>";
+    panel.classList.remove("d-none");
+  }
+
+  container.addEventListener("click", function (event) {
+    var cluster = event.target.closest("[data-cluster]");
+    if (cluster) {
+      showCluster(cluster.dataset.cluster);
+      return;
+    }
+    if (event.target.closest(".timeline-svg")) {
+      document.getElementById("timeline-detail").classList.add("d-none");
+    }
+  });
+
+  container.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    var cluster = event.target.closest("[data-cluster]");
+    if (!cluster) return;
+    event.preventDefault();
+    showCluster(cluster.dataset.cluster);
+  });
 })();
 </script>
 {% endblock %}
