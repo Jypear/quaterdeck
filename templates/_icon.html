@@ -1,0 +1,10 @@
+{% load static %}{% comment %}
+Renders one glyph from the vendored Bootstrap Icons subset sprite
+(static/vendor/bootstrap-icons/sprite.svg — built by scripts/vendor-assets.js).
+
+Usage: {% include "_icon.html" with name="pencil-square" %}
+
+Icons are decorative (aria-hidden) by default — pass `label="Edit account"`
+when the icon is the *only* content of a control, which swaps in an
+accessible name instead. Pass `class="..."` to extend the default sizing.
+{% endcomment %}<svg class="icon {{ class }}" {% if label %}role="img" aria-label="{{ label }}"{% else %}aria-hidden="true"{% endif %}><use href="{% static 'vendor/bootstrap-icons/sprite.svg' %}#icon-{{ name }}"></use></svg>

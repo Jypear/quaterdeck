@@ -3,7 +3,7 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 {% url 'budget:account_add' as account_add_url %}
-{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="+ Add account" %}
+{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="+ Add account" action_icon="plus-lg" %}
 {% include "budget/_subnav.html" %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -12,12 +12,12 @@
     {% for category in categories %}
     <span class="badge border text-body-secondary me-1">
       {{ category.name }}
-      <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1">Edit</a>
-      <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1">Delete</a>
+      <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit category" %}</a>
+      <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete category" %}</a>
     </span>
     {% endfor %}
   </div>
-  <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">+ Add category</a>
+  <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
 </div>
 
 <form id="account-filters" class="row g-3 align-items-start mb-4"

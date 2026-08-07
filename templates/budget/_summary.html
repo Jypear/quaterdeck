@@ -88,9 +88,9 @@
         <td class="text-end">{{ currency }} {{ row.net|floatformat:2 }}</td>
         <td>
           {% if row.covered %}
-          <span class="badge bg-success">Covered</span>
+          <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
           {% else %}
-          <span class="badge bg-danger">Uncovered</span>
+          <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered</span>
           {% endif %}
         </td>
       </tr>

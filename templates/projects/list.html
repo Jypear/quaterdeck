@@ -3,7 +3,7 @@
 {% block nav_projects %}active{% endblock %}
 {% block content %}
 {% url 'projects:project_add' as project_add_url %}
-{% include "_page_header.html" with title="Projects" action_url=project_add_url action_label="+ Add project" %}
+{% include "_page_header.html" with title="Projects" action_url=project_add_url action_label="+ Add project" action_icon="plus-lg" %}
 
 <form id="project-filters" class="row g-2 align-items-end mb-3"
       hx-get="{% url 'projects:list' %}"

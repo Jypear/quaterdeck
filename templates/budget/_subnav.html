@@ -1,22 +1,22 @@
 <ul class="nav nav-pills mb-3">
   <li class="nav-item">
-    <a class="nav-link {% if request.resolver_match.url_name == 'overview' %}active{% endif %}"
-       href="{% url 'budget:overview' %}">Overview</a>
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'overview' %}active{% endif %}"
+       href="{% url 'budget:overview' %}">{% include "_icon.html" with name="graph-up" %}Overview</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link {% if request.resolver_match.url_name == 'accounts' %}active{% endif %}"
-       href="{% url 'budget:accounts' %}">Accounts</a>
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'accounts' %}active{% endif %}"
+       href="{% url 'budget:accounts' %}">{% include "_icon.html" with name="bank2" %}Accounts</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link {% if request.resolver_match.url_name == 'pots' %}active{% endif %}"
-       href="{% url 'budget:pots' %}">Pots</a>
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'pots' %}active{% endif %}"
+       href="{% url 'budget:pots' %}">{% include "_icon.html" with name="piggy-bank" %}Pots</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link {% if request.resolver_match.url_name == 'timeline' %}active{% endif %}"
-       href="{% url 'budget:timeline' %}">Timeline</a>
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'timeline' %}active{% endif %}"
+       href="{% url 'budget:timeline' %}">{% include "_icon.html" with name="clock-history" %}Timeline</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link {% if request.resolver_match.url_name == 'flow' %}active{% endif %}"
-       href="{% url 'budget:flow' %}">Flow</a>
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'flow' %}active{% endif %}"
+       href="{% url 'budget:flow' %}">{% include "_icon.html" with name="diagram-3" %}Flow</a>
   </li>
 </ul>

@@ -37,7 +37,7 @@
             <div class="dropdown">
               <button class="btn btn-sm btn-link p-0 lh-1 text-muted text-decoration-none" type="button"
                       data-bs-toggle="dropdown" aria-expanded="false"
-                      aria-label="Add on {{ day.date|date:'j M' }}">+</button>
+                      aria-label="Add on {{ day.date|date:'j M' }}">{% include "_icon.html" with name="plus-lg" %}</button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{% url 'tasks:task_add' %}?date={{ day.date|date:'Y-m-d' }}">Task</a></li>
                 <li><a class="dropdown-item" href="{% url 'budget:oneoff_add' %}?date={{ day.date|date:'Y-m-d' }}">One-off payment</a></li>

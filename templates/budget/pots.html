@@ -3,7 +3,7 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 {% url 'budget:pot_add' as pot_add_url %}
-{% include "_page_header.html" with title="Pots" action_url=pot_add_url action_label="+ Add pot" %}
+{% include "_page_header.html" with title="Pots" action_url=pot_add_url action_label="+ Add pot" action_icon="plus-lg" %}
 {% include "budget/_subnav.html" %}
 
 <div id="pots-list">

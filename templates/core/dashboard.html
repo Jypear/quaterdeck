@@ -81,11 +81,11 @@
           <li class="d-flex justify-content-between align-items-center gap-2">
             <a href="{% url 'budget:pot_edit' row.pot.id %}" class="text-reset text-decoration-none text-truncate">{{ row.pot.name }}</a>
             {% if row.status == "ahead" %}
-            <span class="badge bg-success">Ahead</span>
+            <span class="badge bg-success">{% include "_icon.html" with name="arrow-up-short" class="me-1" %}Ahead</span>
             {% elif row.status == "behind" %}
-            <span class="badge bg-danger">Behind</span>
+            <span class="badge bg-danger">{% include "_icon.html" with name="arrow-down-short" class="me-1" %}Behind</span>
             {% else %}
-            <span class="badge bg-primary">On track</span>
+            <span class="badge bg-primary">{% include "_icon.html" with name="dash-circle" class="me-1" %}On track</span>
             {% endif %}
           </li>
           {% endfor %}
@@ -110,11 +110,11 @@
           <li class="d-flex justify-content-between align-items-center gap-2">
             <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="text-reset text-decoration-none text-truncate">{{ outgoing.name }} — {{ currency }} {{ outgoing.amount|floatformat:2 }}</a>
             {% if outgoing.months_away == 0 %}
-            <span class="badge bg-danger text-nowrap">Due this month</span>
+            <span class="badge bg-danger text-nowrap">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Due this month</span>
             {% elif outgoing.months_away == 1 %}
-            <span class="badge bg-warning text-dark text-nowrap">Due in 1 month</span>
+            <span class="badge bg-warning text-dark text-nowrap">{% include "_icon.html" with name="calendar-event" class="me-1" %}Due in 1 month</span>
             {% else %}
-            <span class="badge bg-secondary text-nowrap">Due in {{ outgoing.months_away }} months</span>
+            <span class="badge bg-secondary text-nowrap">{% include "_icon.html" with name="calendar-event" class="me-1" %}Due in {{ outgoing.months_away }} months</span>
             {% endif %}
           </li>
           {% endfor %}

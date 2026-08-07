@@ -8,12 +8,12 @@
           <h5 class="card-title mb-0">{{ row.account.name }}</h5>
           <div class="d-flex align-items-center gap-2">
             {% if row.covered %}
-            <span class="badge bg-success">Covered</span>
+            <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
             {% else %}
-            <span class="badge bg-danger">Uncovered</span>
+            <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered</span>
             {% endif %}
-            <a href="{% url 'budget:account_edit' row.account.id %}" class="link-secondary small">Edit</a>
-            <a href="{% url 'budget:account_delete' row.account.id %}" class="link-danger small">Delete</a>
+            <a href="{% url 'budget:account_edit' row.account.id %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit account" %}</a>
+            <a href="{% url 'budget:account_delete' row.account.id %}" class="link-danger small" title="Delete">{% include "_icon.html" with name="trash3" label="Delete account" %}</a>
           </div>
         </div>
         <p class="text-muted text-uppercase small mb-3">{{ row.account.get_account_type_display }}</p>
@@ -33,14 +33,14 @@
           <li class="list-group-item d-flex justify-content-between align-items-center px-0">
             <span>{{ income.name }} — {{ currency }} {{ income.amount|floatformat:2 }} / {{ income.get_frequency_display }}</span>
             <span>
-              <a href="{% url 'budget:income_edit' income.id %}" class="link-secondary">Edit</a>
-              <a href="{% url 'budget:income_delete' income.id %}" class="link-danger ms-1">Delete</a>
+              <a href="{% url 'budget:income_edit' income.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit income" %}</a>
+              <a href="{% url 'budget:income_delete' income.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete income" %}</a>
             </span>
           </li>
           {% endfor %}
         </ul>
         {% endif %}
-        <a href="{% url 'budget:income_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">+ Add income</a>
+        <a href="{% url 'budget:income_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add income</a>
 
         <h6 class="small text-uppercase text-muted mb-2">Outgoings</h6>
         {% if row.account.outgoings.all %}
@@ -53,23 +53,23 @@
                 {% if outgoing.frequency == "yearly" and outgoing.recurring_month %}
                   (due {{ outgoing.recurring_day }}/{{ outgoing.recurring_month|stringformat:"02d" }})
                   {% if outgoing.due_this_period %}
-                  <span class="badge bg-danger">Due this period</span>
+                  <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Due this period</span>
                   {% endif %}
                   {% if outgoing.yearly_billing != "spread" %}
-                  <span class="badge bg-info text-dark">{{ outgoing.get_yearly_billing_display }}</span>
+                  <span class="badge bg-info text-dark">{% include "_icon.html" with name="calendar-event" class="me-1" %}{{ outgoing.get_yearly_billing_display }}</span>
                   {% endif %}
                 {% endif %}
                 {% if outgoing.pot_covered is not None %}
                   {% if outgoing.pot_covered %}
-                  <span class="badge bg-success">Covered</span>
+                  <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
                   {% else %}
-                  <span class="badge bg-warning text-dark">Uncovered ({{ currency }} {{ outgoing.pot_saved|floatformat:2 }} / {{ outgoing.amount|floatformat:2 }})</span>
+                  <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ outgoing.pot_saved|floatformat:2 }} / {{ outgoing.amount|floatformat:2 }})</span>
                   {% endif %}
                 {% endif %}
               </span>
               <span>
-                <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="link-secondary">Edit</a>
-                <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1">Delete</a>
+                <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit outgoing" %}</a>
+                <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete outgoing" %}</a>
               </span>
             </div>
             <form class="d-flex align-items-center gap-2 mt-1"
@@ -82,7 +82,7 @@
               <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Log</button>
               {% if outgoing.variance %}
               <span class="badge {% if outgoing.variance.delta > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                {% if outgoing.variance.delta > 0 %}+{% endif %}{{ currency }} {{ outgoing.variance.delta|floatformat:2 }}
+                {% if outgoing.variance.delta > 0 %}{% include "_icon.html" with name="arrow-up-short" class="me-1" %}+{% else %}{% include "_icon.html" with name="arrow-down-short" class="me-1" %}{% endif %}{{ currency }} {{ outgoing.variance.delta|floatformat:2 }}
               </span>
               {% endif %}
             </form>
@@ -90,7 +90,7 @@
           {% endfor %}
         </ul>
         {% endif %}
-        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">+ Add outgoing</a>
+        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add outgoing</a>
 
         <h6 class="small text-uppercase text-muted mb-2">Transfers</h6>
         {% if row.account.transfers_out.all or row.account.transfers_in.all %}
@@ -102,12 +102,12 @@
               {% if transfer.calc_method == "fixed" %}
               / {{ transfer.get_frequency_display }}
               {% else %}
-              <span class="badge bg-info text-dark">{{ transfer.get_calc_method_display }}</span>
+              <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
               {% endif %}
             </span>
             <span>
-              <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary">Edit</a>
-              <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1">Delete</a>
+              <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit transfer" %}</a>
+              <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete transfer" %}</a>
             </span>
           </li>
           {% endfor %}
@@ -117,13 +117,13 @@
             {% if transfer.calc_method == "fixed" %}
             / {{ transfer.get_frequency_display }}
             {% else %}
-            <span class="badge bg-info text-dark">{{ transfer.get_calc_method_display }}</span>
+            <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
             {% endif %}
           </li>
           {% endfor %}
         </ul>
         {% endif %}
-        <a href="{% url 'budget:transfer_add' %}" class="btn btn-sm btn-outline-secondary mb-3">+ Add transfer</a>
+        <a href="{% url 'budget:transfer_add' %}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add transfer</a>
 
         <h6 class="small text-uppercase text-muted mb-2">One-off outgoings</h6>
         {% if row.account.one_off_outgoings.all %}
@@ -134,21 +134,21 @@
               {{ oneoff.name }} — {{ currency }} {{ oneoff.amount|floatformat:2 }}, due {{ oneoff.due_date }}
               {% if oneoff.linked_pot_id %}
                 {% if oneoff.pot_covered %}
-                <span class="badge bg-success">Covered</span>
+                <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
                 {% else %}
-                <span class="badge bg-warning text-dark">Uncovered ({{ currency }} {{ oneoff.pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
+                <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ oneoff.pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
                 {% endif %}
               {% endif %}
             </span>
             <span>
-              <a href="{% url 'budget:oneoff_edit' oneoff.id %}" class="link-secondary">Edit</a>
-              <a href="{% url 'budget:oneoff_delete' oneoff.id %}" class="link-danger ms-1">Delete</a>
+              <a href="{% url 'budget:oneoff_edit' oneoff.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit one-off" %}</a>
+              <a href="{% url 'budget:oneoff_delete' oneoff.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete one-off" %}</a>
             </span>
           </li>
           {% endfor %}
         </ul>
         {% endif %}
-        <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">+ Add one-off</a>
+        <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add one-off</a>
       </div>
     </div>
   </div>
