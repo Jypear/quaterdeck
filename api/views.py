@@ -10,7 +10,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -21,7 +20,6 @@ from budget.serializers import (
     OneOffOutgoingSerializer,
     OutgoingCategorySerializer,
     OutgoingSerializer,
-    OutgoingVarianceSerializer,
     PotEntrySerializer,
     PotSerializer,
     TransferSerializer,
@@ -59,11 +57,6 @@ class OutgoingCategoryViewSet(ModelViewSet):
 class OutgoingViewSet(ModelViewSet):
     queryset = Outgoing.objects.select_related("category", "account")
     serializer_class = OutgoingSerializer
-
-
-class OutgoingVarianceViewSet(ModelViewSet):
-    queryset = OutgoingVariance.objects.select_related("outgoing")
-    serializer_class = OutgoingVarianceSerializer
 
 
 class OneOffOutgoingViewSet(ModelViewSet):

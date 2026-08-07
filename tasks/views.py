@@ -129,7 +129,7 @@ class TaskDeleteView(DeleteView):
 def toggle_done(request: HttpRequest, pk: int) -> HttpResponse:
     """Flip a task done<->todo and re-render the table partial.
 
-    Mirrors budget.views.log_variance's re-render-in-place pattern. The toggle
+    Mirrors budget.views.log_pot_entry's re-render-in-place pattern. The toggle
     form `hx-include`s the filter form, so `request.POST` carries whatever
     filters/sort were active — the re-rendered table keeps them applied.
     """

@@ -13,7 +13,7 @@
 {% elif summary.adjusted_surplus < 0 %}
 <div class="alert alert-warning" role="alert">
   You're <strong>{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</strong> over budget this period after
-  variances and one-offs.
+  one-offs.
 </div>
 {% endif %}
 
@@ -47,7 +47,7 @@
       <div class="card-body">
         <h6 class="card-subtitle mb-2 text-muted">Adjusted surplus</h6>
         <p class="card-text fs-4 mb-0">{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</p>
-        <small class="text-muted">after variances &amp; one-offs</small>
+        <small class="text-muted">after one-offs</small>
       </div>
     </div>
   </div>

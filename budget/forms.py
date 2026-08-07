@@ -16,7 +16,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -160,15 +159,6 @@ class PotForm(_BootstrapModelForm):
         widgets: ClassVar[dict[str, Any]] = {
             "target_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         }
-
-
-class OutgoingVarianceForm(_BootstrapModelForm):
-    """Only the actual amount is user input — outgoing/period_start are set
-    server-side by the view (see log_variance)."""
-
-    class Meta:
-        model = OutgoingVariance
-        fields: ClassVar[list[str]] = ["actual_amount"]
 
 
 class PotEntryForm(_BootstrapModelForm):

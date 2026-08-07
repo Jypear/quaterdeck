@@ -59,8 +59,6 @@ support (`webhooks`).
   `from_account` / `to_account`.
 - **Pots** — savings goals with a target amount and date. Linked optionally to a Project
   or `OneOffOutgoing`. Per-period contributions are tracked via `PotEntry`.
-- **OutgoingVariance** — records actual vs. budgeted spend for a given period. Deltas
-  flow back into the surplus calculation.
 - **OneOffOutgoing** — future-dated single payments. Appear only in the budget period
   they fall in. Can be pot-linked.
 - **Projects** — containers that link tasks, notes, pots, and calendar events together.
