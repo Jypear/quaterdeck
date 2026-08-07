@@ -3,7 +3,7 @@
 {% block nav_tasks %}active{% endblock %}
 {% block content %}
 {% url 'tasks:task_add' as task_add_url %}
-{% include "_page_header.html" with title="Tasks" action_url=task_add_url action_label="+ Add task" action_icon="plus-lg" %}
+{% include "_page_header.html" with title="Tasks" action_url=task_add_url action_label="Add task" action_icon="plus-lg" %}
 
 <form id="task-filters" class="row g-2 align-items-end mb-3"
       hx-get="{% url 'tasks:list' %}"
