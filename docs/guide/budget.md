@@ -49,6 +49,11 @@ its amount lands in the budget is controlled per-outgoing by **yearly billing**:
 A yearly outgoing left without a due day/month keeps spreading evenly regardless of which
 billing mode is selected — there's nowhere else to put the money.
 
+**Due-this-period visibility.** A yearly outgoing whose due date falls in the active
+period is called out wherever it matters, regardless of its billing mode: a warning
+banner on the Overview tab lists everything due, and its row on the Accounts page is
+highlighted with a "Due this period" badge.
+
 ## Transfers
 
 Inter-account transfers are first-class entries, not outgoings — they move money from

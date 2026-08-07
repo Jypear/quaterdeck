@@ -46,12 +46,15 @@
         {% if row.account.outgoings.all %}
         <ul class="list-group list-group-flush small mb-2">
           {% for outgoing in row.account.outgoings.all %}
-          <li class="list-group-item px-0">
+          <li class="list-group-item px-0 {% if outgoing.due_this_period %}list-group-item-warning{% endif %}">
             <div class="d-flex justify-content-between align-items-center">
               <span>
                 {{ outgoing.name }} — {{ currency }} {{ outgoing.amount|floatformat:2 }} / {{ outgoing.get_frequency_display }}
                 {% if outgoing.frequency == "yearly" and outgoing.recurring_month %}
                   (due {{ outgoing.recurring_day }}/{{ outgoing.recurring_month|stringformat:"02d" }})
+                  {% if outgoing.due_this_period %}
+                  <span class="badge bg-danger">Due this period</span>
+                  {% endif %}
                   {% if outgoing.yearly_billing != "spread" %}
                   <span class="badge bg-info text-dark">{{ outgoing.get_yearly_billing_display }}</span>
                   {% endif %}

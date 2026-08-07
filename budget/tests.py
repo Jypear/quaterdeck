@@ -484,6 +484,25 @@ class YearlyOutgoingTests(TestCase):
         summary = budget_summary("monthly", Period(date(2026, 8, 1), date(2026, 9, 1)))
         assert summary.total_outgoings == Decimal("0")
 
+    def test_budget_summary_flags_yearly_bills_due_this_period_regardless_of_billing(self) -> None:
+        due_this_month = self._yearly(name="Insurance", recurring_day=15, recurring_month=9)
+        self._yearly(name="Next year's TV licence", recurring_day=15, recurring_month=10)
+        summary = budget_summary("monthly", Period(date(2026, 9, 1), date(2026, 10, 1)))
+        assert summary.yearly_due == [due_this_month]
+
+    def test_accounts_page_flags_outgoing_due_in_the_current_active_period(self) -> None:
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        due_now = self._yearly(name="Insurance", recurring_day=period.start.day, recurring_month=period.start.month)
+        due_later = self._yearly(
+            name="Warranty", recurring_day=period.start.day, recurring_month=(period.start.month % 12) + 1
+        )
+        response = self.client.get(reverse("budget:accounts"))
+        summary = next(s for s in response.context["account_summaries"] if s.account.id == self.account.id)
+        outgoings = {o.id: o for o in summary.account.outgoings.all()}
+        assert outgoings[due_now.id].due_this_period is True
+        assert outgoings[due_later.id].due_this_period is False
+
 
 class OutgoingPotCoverageTests(TestCase):
     """Pot-linked yearly outgoings get a computed `.pot_covered` / `.pot_saved` via
