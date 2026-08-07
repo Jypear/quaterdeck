@@ -83,11 +83,11 @@ A pot can optionally link to a **Project** or to a **one-off outgoing** (see abo
 
 ## Timeline
 
-A visual, per-account lane of every dated "stop" (income, outgoing, transfer) across the
-current period, running balance included — useful for seeing at a glance *when* in the
-period money moves, not just the totals. Same-day entries in one account collapse into a
-single marker badged with a count; click or tab to a marker to list that day's entries and
-resulting balance below the chart.
+A visual timeline of every dated "stop" (income, outgoing, transfer) in the current month,
+one small chart per account with its running balance — useful for seeing at a glance *when*
+money moves, not just the totals. Same-day entries in one account collapse into a single
+marker badged with a count; click or tab to a marker to list that day's entries and
+resulting balance directly below that account's chart.
 
 ## Flow
 

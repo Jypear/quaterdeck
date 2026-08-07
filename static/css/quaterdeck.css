@@ -240,12 +240,81 @@ h1, h2, h3, h4, h5, h6,
   margin-top: 0.25rem;
 }
 
-/* Budget timeline — one horizontal "bus stop" lane per account, coloured
-   stops for income/outgoing/transfer, with cross-lane connectors for
-   transfers. Plain inline SVG, same approach as the helm gauge above. */
+/* Budget timeline — one small "bus stop" SVG per account, coloured stops
+   for income/outgoing/transfer. Each account's own detail panel sits right
+   under it, so a clicked day's entries never land far from the row they
+   belong to. Axis ticks and the hover crosshair are plain HTML divs
+   overlaid on the shared .timeline-grid (not SVG) so they can span every
+   account's row with one shared horizontal scrollbar. */
 .timeline-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.timeline-grid {
+  position: relative;
+  padding-top: 22px;
+}
+
+.timeline-axis-line {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  width: 1px;
+  background: rgba(var(--bs-body-color-rgb), 0.08);
+}
+
+.timeline-axis-label {
+  position: absolute;
+  top: 0;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.timeline-crosshair {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--qd-brass);
+  pointer-events: none;
+}
+
+.timeline-account {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-account:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-account.is-hovering .timeline-account-balance {
+  color: var(--qd-brass);
+  font-weight: 600;
+}
+
+.timeline-account-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.timeline-account-name {
+  font-family: var(--qd-font-display);
+  font-size: 0.9rem;
+}
+
+.timeline-account-balance {
+  transition: color 0.15s ease;
+}
+
+.timeline-detail {
+  margin-top: 0.5rem;
 }
 
 .timeline-svg {
@@ -255,63 +324,13 @@ h1, h2, h3, h4, h5, h6,
   display: block;
 }
 
-.timeline-axis-line {
-  stroke: rgba(var(--bs-body-color-rgb), 0.08);
-  stroke-width: 1;
-}
-
-.timeline-crosshair {
-  stroke: var(--qd-brass);
-  stroke-width: 1.5;
-  pointer-events: none;
-}
-
-.timeline-lane.is-hovering .timeline-lane-balance {
-  fill: var(--qd-brass);
-  font-weight: 600;
-}
-
-.timeline-axis-label {
-  font-size: 11px;
-  fill: var(--bs-secondary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
 .timeline-lane-line {
   stroke: rgba(var(--bs-body-color-rgb), 0.2);
   stroke-width: 2;
 }
 
-.timeline-lane-label {
-  font-family: var(--qd-font-display);
-  font-size: 13px;
-  font-weight: 600;
-  fill: var(--bs-emphasis-color);
-}
-
-.timeline-lane-balance {
-  font-size: 11px;
-  fill: var(--bs-secondary-color);
-  transition: fill 0.15s ease;
-}
-
-.timeline-connector {
-  stroke: var(--bs-info);
-  stroke-width: 2;
-  stroke-dasharray: 4 3;
-}
-
-.timeline-stop {
-  cursor: pointer;
-}
-
-.timeline-stop:focus-visible {
-  outline: 2px solid var(--qd-brass);
-  outline-offset: 2px;
-}
-
 .timeline-stop circle {
+  cursor: pointer;
   stroke: var(--bs-body-bg);
   stroke-width: 1.5;
 }
@@ -320,6 +339,7 @@ h1, h2, h3, h4, h5, h6,
   font-size: 10px;
   fill: var(--bs-secondary-color);
   text-anchor: middle;
+  pointer-events: none;
 }
 
 .timeline-stop-count {

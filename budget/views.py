@@ -59,13 +59,10 @@ from core.models import Settings
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
 
-_TIMELINE_MONTH_CHOICES = (1, 3, 6)
 _TIMELINE_CHART_LEFT = 20
-_TIMELINE_MIN_CHART_WIDTH = 940
-_TIMELINE_PX_PER_DAY = 10  # widens the chart at longer horizons so days don't visually merge
-_TIMELINE_TOP_MARGIN = 40
+_TIMELINE_CHART_WIDTH = 940
 _TIMELINE_LANE_HEIGHT = 110
-_TIMELINE_MAX_LABEL_SLOTS = 3  # caps stacked labels at ±38px, safely inside one lane
+_TIMELINE_MAX_LABEL_SLOTS = 3  # caps stacked labels at ±38px, safely inside one lane's own SVG
 _TIMELINE_MAX_MARKER_RADIUS = 10
 
 _TIMELINE_KIND_CSS = {
@@ -203,16 +200,6 @@ class PotListView(TemplateView):
         return context
 
 
-def _requested_months(request: HttpRequest) -> int:
-    """Timeline horizon in months: `?months=` override (1/3/6), else 3."""
-    raw = request.GET.get("months")
-    try:
-        months = int(raw)
-    except (TypeError, ValueError):
-        return 3
-    return months if months in _TIMELINE_MONTH_CHOICES else 3
-
-
 def _label_dy(slot: int) -> float:
     """Interleaved vertical offsets for stacked labels: above line, below
     line, further above, further below, ..."""
@@ -252,21 +239,27 @@ def _assign_label_dys(labels: list[tuple[float, float]]) -> list[float | None]:
 
 
 def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: str) -> dict[str, Any]:
-    """Geometry for the timeline SVG: lane rows of positioned markers, cross-lane
-    transfer connectors, and month-boundary axis ticks. Kept in the view (not
-    services) since it's presentation, not domain logic.
+    """Geometry for the timeline: one small SVG per account (positioned
+    markers on a single line) plus shared month-boundary axis ticks. Kept in
+    the view (not services) since it's presentation, not domain logic.
 
-    Stops are clustered per (lane, date) into a single marker — same-day
+    Each account gets its own SVG, rather than one tall SVG with a lane per
+    account, so a clicked day's detail panel can sit directly under the
+    account it belongs to instead of in one shared block below everything —
+    that also means there's no single shared canvas left to draw cross-lane
+    transfer connectors on; a transfer still shows as a coloured marker in
+    both accounts on its date, just without the linking line.
+
+    Stops are clustered per (account, date) into a single marker — same-day
     entries in one account would otherwise resolve to the same x and render
     as indistinguishable overlapping circles. A cluster's entries (for the
     click-through detail panel) are returned separately, keyed by marker id,
     since the SVG itself has no good way to hold a variable-length list.
     """
     total_days = (end - start).days or 1
-    chart_width = max(_TIMELINE_MIN_CHART_WIDTH, total_days * _TIMELINE_PX_PER_DAY)
 
     def x_for(d: date) -> float:
-        return _TIMELINE_CHART_LEFT + (d - start).days / total_days * chart_width
+        return _TIMELINE_CHART_LEFT + (d - start).days / total_days * _TIMELINE_CHART_WIDTH
 
     axis_ticks = []
     year, month = start.year, start.month
@@ -275,17 +268,13 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
         axis_ticks.append({"x": x_for(max(month_start, start)), "label": month_start.strftime("%b %Y")})
         year, month = _shift_month(year, month, 1)
 
+    line_y = _TIMELINE_LANE_HEIGHT / 2
     lane_rows = []
     cluster_details: dict[str, dict[str, Any]] = {}
-    connector_points: dict[tuple[int, date], list[tuple[float, float]]] = {}
     for index, lane in enumerate(lanes):
-        y = _TIMELINE_TOP_MARGIN + index * _TIMELINE_LANE_HEIGHT + _TIMELINE_LANE_HEIGHT / 2
-
         day_groups: dict[date, list[TimelineStop]] = {}
         for stop in lane.stops:
             day_groups.setdefault(stop.date, []).append(stop)
-            if stop.transfer_id is not None:
-                connector_points.setdefault((stop.transfer_id, stop.date), []).append((x_for(stop.date), y))
 
         clusters = []
         hover_points = []
@@ -307,7 +296,7 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
                 {
                     "id": cluster_id,
                     "x": cx,
-                    "y": y,
+                    "y": line_y,
                     "r": 6 if count == 1 else min(6 + (count - 1) * 1.5, _TIMELINE_MAX_MARKER_RADIUS),
                     "count": count,
                     "css": css,
@@ -331,9 +320,6 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
         lane_rows.append(
             {
                 "account": lane.account,
-                "y": y,
-                "name_y": y - _TIMELINE_LANE_HEIGHT / 2 + 18,
-                "balance_y": y + _TIMELINE_LANE_HEIGHT / 2 - 10,
                 "clusters": clusters,
                 "end_balance_str": f"{lane.end_balance:.2f}",
                 "hover_id": f"lane-hover-{index}",
@@ -341,18 +327,11 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
             }
         )
 
-    connectors = []
-    for points in connector_points.values():
-        if len(points) == 2:
-            (x, y1), (_, y2) = points
-            connectors.append({"x": x, "y1": y1, "y2": y2})
-
-    height = _TIMELINE_TOP_MARGIN + _TIMELINE_LANE_HEIGHT * len(lanes) + 20
     return {
-        "width": chart_width + _TIMELINE_CHART_LEFT,
-        "height": height,
+        "width": _TIMELINE_CHART_WIDTH + _TIMELINE_CHART_LEFT,
+        "lane_height": _TIMELINE_LANE_HEIGHT,
+        "line_y": line_y,
         "lanes": lane_rows,
-        "connectors": connectors,
         "axis_ticks": axis_ticks,
         "cluster_details": cluster_details,
     }
@@ -366,11 +345,10 @@ class TimelineView(TemplateView):
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
         account_ids = _requested_account_ids(self.request)
-        months = _requested_months(self.request)
 
         current_period = active_period(settings.budget_mode, settings.budget_start_day)
         start = current_period.start
-        end_year, end_month = _shift_month(start.year, start.month, months)
+        end_year, end_month = _shift_month(start.year, start.month, 1)
         end = _monthly_anchor(end_year, end_month, start.day)
 
         lanes = account_timelines(start, end, account_ids, mode=settings.budget_mode, period=current_period)
@@ -378,8 +356,6 @@ class TimelineView(TemplateView):
         context["svg"] = _timeline_svg(lanes, start, end, settings.currency)
         context["all_accounts"] = Account.objects.filter(is_active=True)
         context["selected_account_ids"] = account_ids
-        context["months"] = months
-        context["month_choices"] = _TIMELINE_MONTH_CHOICES
         context["currency"] = settings.currency
         context["window"] = Period(start, end)
         context["has_stops"] = any(lane.stops for lane in lanes)
