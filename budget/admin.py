@@ -6,7 +6,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -40,12 +39,6 @@ class OutgoingCategoryAdmin(admin.ModelAdmin):
 class OutgoingAdmin(admin.ModelAdmin):
     list_display = ("name", "amount", "category", "frequency", "account")
     list_filter = ("category", "frequency", "account")
-
-
-@admin.register(OutgoingVariance)
-class OutgoingVarianceAdmin(admin.ModelAdmin):
-    list_display = ("outgoing", "period_start", "actual_amount")
-    list_filter = ("period_start",)
 
 
 @admin.register(OneOffOutgoing)

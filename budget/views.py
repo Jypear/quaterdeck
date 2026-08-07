@@ -20,7 +20,6 @@ from budget.forms import (
     OneOffOutgoingForm,
     OutgoingCategoryForm,
     OutgoingForm,
-    OutgoingVarianceForm,
     PotEntryForm,
     PotForm,
     TransferForm,
@@ -31,7 +30,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -117,16 +115,13 @@ class BudgetOverviewView(TemplateView):
 
 
 def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
-    """Context for the accounts page/partial, shared with `log_variance`'s HTMX re-render.
+    """Context for the accounts page/partial.
 
-    Each outgoing gets a `.variance` attribute (the current period's
-    OutgoingVariance, or None) set directly on the prefetched instance —
-    simpler than a template dict-lookup filter. Each pot-linked one-off or
-    outgoing gets `.pot_saved` / `.pot_covered` (total saved in the linked pot
-    vs. its amount, `None` when unlinked) so the accounts page can show a
-    covered/uncovered badge. Each yearly outgoing gets `.due_this_period` so
-    the page can flag a bill that's actually due now, regardless of its
-    `yearly_billing` mode.
+    Each pot-linked one-off or outgoing gets `.pot_saved` / `.pot_covered`
+    (total saved in the linked pot vs. its amount, `None` when unlinked) so
+    the accounts page can show a covered/uncovered badge. Each yearly
+    outgoing gets `.due_this_period` so the page can flag a bill that's
+    actually due now, regardless of its `yearly_billing` mode.
     """
     period = active_period(mode, settings.budget_start_day)
     accounts = Account.objects.filter(is_active=True).prefetch_related(
@@ -136,17 +131,12 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
         "transfers_out",
         "one_off_outgoings",
     )
-    variances = {
-        v.outgoing_id: v
-        for v in OutgoingVariance.objects.filter(period_start__gte=period.start, period_start__lt=period.end)
-    }
     pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
     pot_for_outgoing = dict(Pot.objects.filter(linked_outgoing__isnull=False).values_list("linked_outgoing_id", "id"))
     accounts = list(accounts)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     for account in accounts:
         for outgoing in account.outgoings.all():
-            outgoing.variance = variances.get(outgoing.id)
             pot_id = pot_for_outgoing.get(outgoing.id)
             outgoing.pot_covered = pot_saved.get(pot_id, ZERO) >= outgoing.amount if pot_id else None
             outgoing.pot_saved = pot_saved.get(pot_id, ZERO) if pot_id else None
@@ -618,30 +608,11 @@ class PotDeleteView(_BudgetDeleteView):
     success_url = reverse_lazy("budget:pots")
 
 
-# --- Feedback-loop logging: actual spend / actual saved ---------------------
+# --- Feedback-loop logging: actual saved -------------------------------------
 #
-# Both key on (thing, period_start=active period) via update_or_create, so
+# Keys on (pot, period_start=active period) via update_or_create, so
 # re-submitting for the same period overwrites — that's also the correction
 # path, no separate edit UI needed.
-
-
-@require_POST
-def log_variance(request: HttpRequest, outgoing_id: int) -> HttpResponse:
-    outgoing = get_object_or_404(Outgoing, pk=outgoing_id)
-    settings = Settings.get()
-    period = active_period(settings.budget_mode, settings.budget_start_day)
-
-    form = OutgoingVarianceForm(request.POST)
-    if form.is_valid():
-        OutgoingVariance.objects.update_or_create(
-            outgoing=outgoing,
-            period_start=period.start,
-            defaults={"actual_amount": form.cleaned_data["actual_amount"]},
-        )
-        messages.success(request, f"Logged actual spend for {outgoing.name}.")
-
-    mode = _requested_mode(request, settings)
-    return render(request, "budget/_accounts.html", _accounts_context(mode, settings))
 
 
 @require_POST

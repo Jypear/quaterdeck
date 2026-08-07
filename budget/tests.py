@@ -14,7 +14,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -89,7 +88,7 @@ class ModeOverrideWiringTests(TestCase):
     """Regression: the view must compute `active_period` from the requested
     `?mode=` override, not from the instance's stored `Settings.budget_mode` —
     otherwise switching the display mode re-normalises amounts but still
-    filters one-offs/variances/pot-entries by the wrong window."""
+    filters one-offs/pot-entries by the wrong window."""
 
     def test_mode_override_produces_a_different_period_than_stored_mode(self) -> None:
         request = RequestFactory().get("/", {"mode": "yearly"})
@@ -369,19 +368,6 @@ class BudgetSummaryTests(TestCase):
         assert summary.surplus == Decimal("2000")
         assert summary.adjusted_surplus == Decimal("2000")
 
-    def test_overspend_variance_reduces_adjusted_surplus(self) -> None:
-        outgoing = Outgoing.objects.create(
-            name="Groceries",
-            amount=Decimal("200"),
-            category=self.category,
-            frequency="monthly",
-            account=self.account,
-        )
-        OutgoingVariance.objects.create(outgoing=outgoing, period_start=date(2026, 7, 1), actual_amount=Decimal("250"))
-        summary = budget_summary(self.mode, self.period)
-        assert summary.variance_total == Decimal("50")
-        assert summary.adjusted_surplus == summary.surplus - Decimal("50")
-
     def test_one_off_only_counts_within_its_period(self) -> None:
         OneOffOutgoing.objects.create(
             name="Car service", amount=Decimal("300"), due_date=date(2026, 7, 15), account=self.account
@@ -391,6 +377,7 @@ class BudgetSummaryTests(TestCase):
         )
         summary = budget_summary(self.mode, self.period)
         assert summary.one_off_total == Decimal("300")
+        assert summary.adjusted_surplus == summary.surplus - Decimal("300")
 
     def test_pot_contributions_reduce_unallocated_surplus(self) -> None:
         IncomeStream.objects.create(name="Salary", amount=Decimal("1000"), frequency="monthly", account=self.account)
@@ -776,39 +763,6 @@ class PotProgressTests(TestCase):
         period = Period(date(2026, 7, 1), date(2026, 8, 1))
         progress = pot_progress(pot, Settings.BudgetMode.MONTHLY, period)
         assert progress.per_period_needed == Decimal("0")
-
-
-class LogVarianceViewTests(TestCase):
-    """POSTing to log_variance is the only way to fill OutgoingVariance from the browser."""
-
-    def setUp(self) -> None:
-        self.account = Account.objects.create(name="Personal")
-        self.category = OutgoingCategory.objects.create(name="Bills")
-        self.outgoing = Outgoing.objects.create(
-            name="Rent", amount=Decimal("1000"), category=self.category, frequency="monthly", account=self.account
-        )
-        settings = Settings.get()
-        self.period = active_period(settings.budget_mode, settings.budget_start_day)
-
-    def test_post_creates_variance_for_the_active_period(self) -> None:
-        url = reverse("budget:log_variance", args=[self.outgoing.id])
-        response = self.client.post(url, {"actual_amount": "1200"})
-        assert response.status_code == 200
-        variance = OutgoingVariance.objects.get(outgoing=self.outgoing, period_start=self.period.start)
-        assert variance.actual_amount == Decimal("1200")
-
-    def test_second_post_same_period_overwrites_instead_of_duplicating(self) -> None:
-        url = reverse("budget:log_variance", args=[self.outgoing.id])
-        self.client.post(url, {"actual_amount": "1200"})
-        self.client.post(url, {"actual_amount": "1300"})
-        assert OutgoingVariance.objects.filter(outgoing=self.outgoing).count() == 1
-        assert OutgoingVariance.objects.get(outgoing=self.outgoing).actual_amount == Decimal("1300")
-
-    def test_logged_variance_flows_into_adjusted_surplus(self) -> None:
-        url = reverse("budget:log_variance", args=[self.outgoing.id])
-        self.client.post(url, {"actual_amount": "1200"})
-        summary = budget_summary(Settings.BudgetMode.MONTHLY, self.period)
-        assert summary.variance_total == Decimal("200")
 
 
 class LogPotEntryViewTests(TestCase):

@@ -25,13 +25,6 @@ Recurring expenses (rent, subscriptions, groceries), each with a name, budgeted 
 category, frequency, and account. Categories are user-defined — create as many as you
 need (Budget → Accounts → outgoing categories) to group things your way.
 
-**Logging actual spend.** Outgoings are budgeted amounts, not automatic bank feeds — each
-period you can log what you *actually* spent against an outgoing right from the Accounts
-page. Resubmitting a logged amount for the same period corrects it rather than creating a
-duplicate. The difference (actual − budgeted) is that outgoing's **variance**, and it
-flows straight into the surplus calculation for that period — overspending on groceries
-this month reduces what's left over, even though the budgeted figure didn't change.
-
 **Yearly outgoings.** A yearly outgoing can be given a due month and day (e.g. an
 insurance renewal due 27 March), which also places it on the calendar and timeline. How
 its amount lands in the budget is controlled per-outgoing by **yearly billing**:
@@ -90,15 +83,15 @@ survives into next year automatically instead of needing to be recreated by hand
 The Overview tab totals income vs. outgoings (and transfers) for the selected period —
 across all accounts, or per-account — and shows the **surplus**: what's left after
 everything recurring is accounted for, then an **adjusted surplus** that also factors in
-this period's logged variances. Unallocated surplus is called out deliberately, as a
+this period's one-off payments. Unallocated surplus is called out deliberately, as a
 nudge toward putting it in a pot — the app never allocates it for you.
 
 ## Pots
 
 Pots are savings goals: a name, a target amount, a target date, and a monthly
-contribution target. Each period, you log what you actually saved into a pot (same
-overwrite-on-resubmit behaviour as outgoing variance logging). From that, the app tracks
-status:
+contribution target. Each period, you log what you actually saved into a pot —
+resubmitting a logged amount for the same period corrects it rather than creating a
+duplicate. From that, the app tracks status:
 
 - **Ahead** — you've saved more than expected to date.
 - **On track** — saved matches expected.

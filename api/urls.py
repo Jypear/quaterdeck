@@ -8,7 +8,6 @@ from api.views import (
     NoteViewSet,
     OneOffOutgoingViewSet,
     OutgoingCategoryViewSet,
-    OutgoingVarianceViewSet,
     OutgoingViewSet,
     PotEntryViewSet,
     PotViewSet,
@@ -25,7 +24,6 @@ router.register("income-streams", IncomeStreamViewSet, basename="income-stream")
 router.register("transfers", TransferViewSet, basename="transfer")
 router.register("outgoing-categories", OutgoingCategoryViewSet, basename="outgoing-category")
 router.register("outgoings", OutgoingViewSet, basename="outgoing")
-router.register("outgoing-variances", OutgoingVarianceViewSet, basename="outgoing-variance")
 router.register("one-off-outgoings", OneOffOutgoingViewSet, basename="one-off-outgoing")
 router.register("pots", PotViewSet, basename="pot")
 router.register("pot-entries", PotEntryViewSet, basename="pot-entry")

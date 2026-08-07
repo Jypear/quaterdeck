@@ -549,3 +549,70 @@ a.card:hover,
     animation: none !important;
   }
 }
+
+/* Budget accounts — a CSS multi-column layout instead of a Bootstrap row, so
+   each account card sizes to its own content rather than being stretched to
+   match the tallest card in its row (the joint account, with a long outgoings
+   list, was inflating every neighbour). ponytail: columns fill top-to-bottom
+   per column rather than left-to-right, so reading order isn't strictly
+   left-to-right — fine here since each card is an independent account, not a
+   ranked list. */
+.account-grid {
+  columns: 1;
+  column-gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .account-grid {
+    columns: 2;
+  }
+}
+
+@media (min-width: 1400px) {
+  .account-grid {
+    columns: 3;
+  }
+}
+
+.account-grid > .card {
+  break-inside: avoid;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+/* Dense entry rows (income streams, outgoings, transfers, one-offs) — a
+   fixed-ish column layout so amounts line up vertically instead of running
+   together in one sentence per row. Badges/extra detail drop to their own
+   line below (.entry-meta) so a long name can't shove the amount column. */
+.entry-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.entry-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.entry-freq {
+  min-width: 2.25rem;
+  text-align: right;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.entry-actions {
+  white-space: nowrap;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

@@ -77,7 +77,6 @@ DRF REST API for all core resources. Inbound and outbound webhook support.
 - **Accounts**: Named bank accounts (personal / joint / savings / other). Income, outgoings, and transfers are all assigned to accounts.
 - **Transfers**: First-class entries — not outgoings. Modelled separately with `from_account` / `to_account`.
 - **Pots**: Savings goals with a target amount and date. Linked optionally to a Project or OneOffOutgoing. Per-period contributions tracked via `PotEntry`.
-- **OutgoingVariance**: Records actual vs. budgeted spend for a given period. Deltas flow back into the surplus calculation.
 - **OneOffOutgoing**: Future-dated single payments. Appear only in the budget period they fall in. Can be pot-linked.
 - **Projects**: Containers that link tasks, notes, pots, and calendar events together.
 

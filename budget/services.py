@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
-from budget.models import Account, IncomeStream, Outgoing, OutgoingVariance, Pot, PotEntry, Transfer
+from budget.models import Account, IncomeStream, Outgoing, Pot, PotEntry, Transfer
 from core.models import Settings
 
 if TYPE_CHECKING:
@@ -412,7 +412,6 @@ class BudgetSummary:
     total_income: Decimal = ZERO
     total_outgoings: Decimal = ZERO
     surplus: Decimal = ZERO
-    variance_total: Decimal = ZERO
     one_off_total: Decimal = ZERO
     adjusted_surplus: Decimal = ZERO
     pot_contributions: Decimal = ZERO
@@ -438,12 +437,11 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
 
     `surplus` is income minus outgoings only (transfers net to zero once all
     accounts are included). `adjusted_surplus` further deducts this period's
-    outgoing variances and one-off payments. `unallocated_surplus` deducts
-    what's already been logged into pots this period — the nudge-to-allocate
-    figure. `yearly_due` lists every yearly outgoing whose due date falls in
-    `period` regardless of its `yearly_billing` mode — a `spread` bill is
-    still worth flagging as actually due, even though its amount doesn't
-    spike.
+    one-off payments. `unallocated_surplus` deducts what's already been
+    logged into pots this period — the nudge-to-allocate figure. `yearly_due`
+    lists every yearly outgoing whose due date falls in `period` regardless of
+    its `yearly_billing` mode — a `spread` bill is still worth flagging as
+    actually due, even though its amount doesn't spike.
     """
     accounts = prefetched_accounts(account_ids)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
@@ -453,19 +451,8 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
     total_outgoings = sum((s.outgoings for s in summaries), ZERO)
     surplus = total_income - total_outgoings
 
-    variance_total = sum(
-        (
-            v.delta
-            for v in OutgoingVariance.objects.filter(
-                outgoing__account__in=accounts,
-                period_start__gte=period.start,
-                period_start__lt=period.end,
-            ).select_related("outgoing")
-        ),
-        ZERO,
-    )
     one_off_total = sum((s.one_offs for s in summaries), ZERO)
-    adjusted_surplus = surplus - variance_total - one_off_total
+    adjusted_surplus = surplus - one_off_total
 
     pot_contributions = sum(
         (e.actual_amount for e in PotEntry.objects.filter(period_start__gte=period.start, period_start__lt=period.end)),
@@ -487,7 +474,6 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
         total_income=total_income,
         total_outgoings=total_outgoings,
         surplus=surplus,
-        variance_total=variance_total,
         one_off_total=one_off_total,
         adjusted_surplus=adjusted_surplus,
         pot_contributions=pot_contributions,

@@ -8,7 +8,6 @@ from budget.models import (
     OneOffOutgoing,
     Outgoing,
     OutgoingCategory,
-    OutgoingVariance,
     Pot,
     PotEntry,
     Transfer,
@@ -42,14 +41,6 @@ class OutgoingCategorySerializer(serializers.ModelSerializer):
 class OutgoingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Outgoing
-        fields = "__all__"
-
-
-class OutgoingVarianceSerializer(serializers.ModelSerializer):
-    delta = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = OutgoingVariance
         fields = "__all__"
 
 

@@ -1,155 +1,173 @@
 {% if account_summaries %}
-<div class="row g-3">
+<div class="account-grid">
   {% for row in account_summaries %}
-  <div class="col-12 col-md-6 col-xl-4">
-    <div class="card h-100 {% if row.covered %}border-success{% else %}border-danger{% endif %}">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <h5 class="card-title mb-0">{{ row.account.name }}</h5>
-          <div class="d-flex align-items-center gap-2">
-            {% if row.covered %}
-            <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
-            {% else %}
-            <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered</span>
-            {% endif %}
-            <a href="{% url 'budget:account_edit' row.account.id %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit account" %}</a>
-            <a href="{% url 'budget:account_delete' row.account.id %}" class="link-danger small" title="Delete">{% include "_icon.html" with name="trash3" label="Delete account" %}</a>
-          </div>
+  <div class="card {% if row.covered %}border-success{% else %}border-danger{% endif %}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <h5 class="card-title mb-0">{{ row.account.name }}</h5>
+        <div class="d-flex align-items-center gap-2">
+          {% if row.covered %}
+          <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
+          {% else %}
+          <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered</span>
+          {% endif %}
+          <a href="{% url 'budget:account_edit' row.account.id %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit account" %}</a>
+          <a href="{% url 'budget:account_delete' row.account.id %}" class="link-danger small" title="Delete">{% include "_icon.html" with name="trash3" label="Delete account" %}</a>
         </div>
-        <p class="text-muted text-uppercase small mb-3">{{ row.account.get_account_type_display }}</p>
-        <dl class="row mb-3 small">
-          <dt class="col-7">Income</dt><dd class="col-5 text-end">{{ currency }} {{ row.income|floatformat:2 }}</dd>
-          <dt class="col-7">Outgoings</dt><dd class="col-5 text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</dd>
-          <dt class="col-7">Transfers in</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }}</dd>
-          <dt class="col-7">Transfers out</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_out|floatformat:2 }}</dd>
-          <dt class="col-7">One-offs due</dt><dd class="col-5 text-end">{{ currency }} {{ row.one_offs|floatformat:2 }}</dd>
-          <dt class="col-7 fw-bold">Net</dt><dd class="col-5 text-end fw-bold">{{ currency }} {{ row.net|floatformat:2 }}</dd>
-        </dl>
+      </div>
+      <p class="text-muted text-uppercase small mb-3">{{ row.account.get_account_type_display }}</p>
+      <dl class="row mb-3 small tabular-nums">
+        <dt class="col-7">Income</dt><dd class="col-5 text-end">{{ currency }} {{ row.income|floatformat:2 }}</dd>
+        <dt class="col-7">Outgoings</dt><dd class="col-5 text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</dd>
+        <dt class="col-7">Transfers in</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }}</dd>
+        <dt class="col-7">Transfers out</dt><dd class="col-5 text-end">{{ currency }} {{ row.transfers_out|floatformat:2 }}</dd>
+        <dt class="col-7">One-offs due</dt><dd class="col-5 text-end">{{ currency }} {{ row.one_offs|floatformat:2 }}</dd>
+        <dt class="col-7 fw-bold">Net</dt><dd class="col-5 text-end fw-bold">{{ currency }} {{ row.net|floatformat:2 }}</dd>
+      </dl>
 
-        <h6 class="small text-uppercase text-muted mb-2">Income streams</h6>
-        {% if row.account.income_streams.all %}
-        <ul class="list-group list-group-flush small mb-2">
-          {% for income in row.account.income_streams.all %}
-          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <span>{{ income.name }} — {{ currency }} {{ income.amount|floatformat:2 }} / {{ income.get_frequency_display }}</span>
-            <span>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="small text-uppercase text-muted mb-0">Income streams ({{ currency }})</h6>
+        <a href="{% url 'budget:income_add' %}?account={{ row.account.id }}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
+      </div>
+      {% if row.account.income_streams.all %}
+      <ul class="list-group list-group-flush small mb-3">
+        {% for income in row.account.income_streams.all %}
+        <li class="list-group-item px-0">
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="entry-name">{{ income.name }}</span>
+            <span class="entry-amount tabular-nums">{{ income.amount|floatformat:2 }}</span>
+            <span class="entry-freq">{{ income.short_frequency }}</span>
+            <span class="entry-actions">
               <a href="{% url 'budget:income_edit' income.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit income" %}</a>
               <a href="{% url 'budget:income_delete' income.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete income" %}</a>
             </span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <a href="{% url 'budget:income_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add income</a>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-3">None yet.</p>
+      {% endif %}
 
-        <h6 class="small text-uppercase text-muted mb-2">Outgoings</h6>
-        {% if row.account.outgoings.all %}
-        <ul class="list-group list-group-flush small mb-2">
-          {% for outgoing in row.account.outgoings.all %}
-          <li class="list-group-item px-0 {% if outgoing.due_this_period %}list-group-item-warning{% endif %}">
-            <div class="d-flex justify-content-between align-items-center">
-              <span>
-                {{ outgoing.name }} — {{ currency }} {{ outgoing.amount|floatformat:2 }} / {{ outgoing.get_frequency_display }}
-                {% if outgoing.frequency == "yearly" and outgoing.recurring_month %}
-                  (due {{ outgoing.recurring_day }}/{{ outgoing.recurring_month|stringformat:"02d" }})
-                  {% if outgoing.due_this_period %}
-                  <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Due this period</span>
-                  {% endif %}
-                  {% if outgoing.yearly_billing != "spread" %}
-                  <span class="badge bg-info text-dark">{% include "_icon.html" with name="calendar-event" class="me-1" %}{{ outgoing.get_yearly_billing_display }}</span>
-                  {% endif %}
-                {% endif %}
-                {% if outgoing.pot_covered is not None %}
-                  {% if outgoing.pot_covered %}
-                  <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
-                  {% else %}
-                  <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ outgoing.pot_saved|floatformat:2 }} / {{ outgoing.amount|floatformat:2 }})</span>
-                  {% endif %}
-                {% endif %}
-              </span>
-              <span>
-                <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit outgoing" %}</a>
-                <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete outgoing" %}</a>
-              </span>
-            </div>
-            <form class="d-flex align-items-center gap-2 mt-1"
-                  hx-post="{% url 'budget:log_variance' outgoing.id %}?mode={{ mode }}"
-                  hx-target="#account-summaries" hx-swap="innerHTML">
-              {% csrf_token %}
-              <label class="text-muted text-nowrap">Actual this period</label>
-              <input type="number" step="0.01" name="actual_amount" class="form-control form-control-sm"
-                     value="{{ outgoing.variance.actual_amount|default_if_none:'' }}" required>
-              <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Log</button>
-              {% if outgoing.variance %}
-              <span class="badge {% if outgoing.variance.delta > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                {% if outgoing.variance.delta > 0 %}{% include "_icon.html" with name="arrow-up-short" class="me-1" %}+{% else %}{% include "_icon.html" with name="arrow-down-short" class="me-1" %}{% endif %}{{ currency }} {{ outgoing.variance.delta|floatformat:2 }}
-              </span>
-              {% endif %}
-            </form>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add outgoing</a>
-
-        <h6 class="small text-uppercase text-muted mb-2">Transfers</h6>
-        {% if row.account.transfers_out.all or row.account.transfers_in.all %}
-        <ul class="list-group list-group-flush small mb-2">
-          {% for transfer in row.account.transfers_out.all %}
-          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <span>
-              To {{ transfer.to_account }} — {{ currency }} {{ transfer.effective_amount|floatformat:2 }}
-              {% if transfer.calc_method == "fixed" %}
-              / {{ transfer.get_frequency_display }}
-              {% else %}
-              <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
-              {% endif %}
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="small text-uppercase text-muted mb-0">Outgoings ({{ currency }})</h6>
+        <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
+      </div>
+      {% if row.account.outgoings.all %}
+      <ul class="list-group list-group-flush small mb-3">
+        {% for outgoing in row.account.outgoings.all %}
+        <li class="list-group-item px-0 {% if outgoing.due_this_period %}list-group-item-warning{% endif %}">
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="entry-name">{{ outgoing.name }}</span>
+            <span class="entry-amount tabular-nums">{{ outgoing.amount|floatformat:2 }}</span>
+            <span class="entry-freq">{{ outgoing.short_frequency }}</span>
+            <span class="entry-actions">
+              <a href="{% url 'budget:outgoing_edit' outgoing.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit outgoing" %}</a>
+              <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete outgoing" %}</a>
             </span>
-            <span>
+          </div>
+          {% if outgoing.frequency == "yearly" and outgoing.recurring_month or outgoing.pot_covered is not None %}
+          <div class="entry-meta">
+            {% if outgoing.frequency == "yearly" and outgoing.recurring_month %}
+            <span class="text-muted">due {{ outgoing.recurring_day }}/{{ outgoing.recurring_month|stringformat:"02d" }}</span>
+            {% if outgoing.due_this_period %}
+            <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Due this period</span>
+            {% endif %}
+            {% if outgoing.yearly_billing != "spread" %}
+            <span class="badge bg-info text-dark">{% include "_icon.html" with name="calendar-event" class="me-1" %}{{ outgoing.get_yearly_billing_display }}</span>
+            {% endif %}
+            {% endif %}
+            {% if outgoing.pot_covered is not None %}
+              {% if outgoing.pot_covered %}
+              <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
+              {% else %}
+              <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ outgoing.pot_saved|floatformat:2 }} / {{ outgoing.amount|floatformat:2 }})</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-3">None yet.</p>
+      {% endif %}
+
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="small text-uppercase text-muted mb-0">Transfers ({{ currency }})</h6>
+        <a href="{% url 'budget:transfer_add' %}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
+      </div>
+      {% if row.account.transfers_out.all or row.account.transfers_in.all %}
+      <ul class="list-group list-group-flush small mb-3">
+        {% for transfer in row.account.transfers_out.all %}
+        <li class="list-group-item px-0">
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="entry-name">To {{ transfer.to_account }}</span>
+            <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
+            <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
+            <span class="entry-actions">
               <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit transfer" %}</a>
               <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete transfer" %}</a>
             </span>
-          </li>
-          {% endfor %}
-          {% for transfer in row.account.transfers_in.all %}
-          <li class="list-group-item px-0 text-muted">
-            From {{ transfer.from_account }} — {{ currency }} {{ transfer.effective_amount|floatformat:2 }}
-            {% if transfer.calc_method == "fixed" %}
-            / {{ transfer.get_frequency_display }}
-            {% else %}
+          </div>
+          {% if transfer.calc_method != "fixed" %}
+          <div class="entry-meta">
             <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <a href="{% url 'budget:transfer_add' %}" class="btn btn-sm btn-outline-secondary mb-3">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add transfer</a>
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+        {% for transfer in row.account.transfers_in.all %}
+        <li class="list-group-item px-0 text-muted">
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="entry-name">From {{ transfer.from_account }}</span>
+            <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
+            <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
+          </div>
+          {% if transfer.calc_method != "fixed" %}
+          <div class="entry-meta">
+            <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-3">None yet.</p>
+      {% endif %}
 
-        <h6 class="small text-uppercase text-muted mb-2">One-off outgoings</h6>
-        {% if row.account.one_off_outgoings.all %}
-        <ul class="list-group list-group-flush small mb-2">
-          {% for oneoff in row.account.one_off_outgoings.all %}
-          <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-            <span>
-              {{ oneoff.name }} — {{ currency }} {{ oneoff.amount|floatformat:2 }}, due {{ oneoff.due_date }}
-              {% if oneoff.linked_pot_id %}
-                {% if oneoff.pot_covered %}
-                <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
-                {% else %}
-                <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ oneoff.pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
-                {% endif %}
-              {% endif %}
-            </span>
-            <span>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="small text-uppercase text-muted mb-0">One-off outgoings ({{ currency }})</h6>
+        <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
+      </div>
+      {% if row.account.one_off_outgoings.all %}
+      <ul class="list-group list-group-flush small">
+        {% for oneoff in row.account.one_off_outgoings.all %}
+        <li class="list-group-item px-0">
+          <div class="d-flex align-items-baseline gap-2">
+            <span class="entry-name">{{ oneoff.name }}</span>
+            <span class="entry-amount tabular-nums">{{ oneoff.amount|floatformat:2 }}</span>
+            <span class="entry-freq">{{ oneoff.due_date|date:"d/m" }}</span>
+            <span class="entry-actions">
               <a href="{% url 'budget:oneoff_edit' oneoff.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit one-off" %}</a>
               <a href="{% url 'budget:oneoff_delete' oneoff.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete one-off" %}</a>
             </span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add one-off</a>
-      </div>
+          </div>
+          {% if oneoff.linked_pot_id %}
+          <div class="entry-meta">
+            {% if oneoff.pot_covered %}
+            <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
+            {% else %}
+            <span class="badge bg-warning text-dark">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ oneoff.pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
+            {% endif %}
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-0">None yet.</p>
+      {% endif %}
     </div>
   </div>
   {% endfor %}

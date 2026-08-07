@@ -4,15 +4,12 @@ Hierarchy:
   Account
     ├─ IncomeStream  (income landing in this account)
     ├─ Outgoing      (recurring expense from this account)
-    │    └─ OutgoingVariance  (actual vs budgeted for a period)
     ├─ OneOffOutgoing (future-dated single payment)
     └─ Transfer (from_account → to_account)
 
   Pot  (savings goal; optionally linked to Project / Outgoing / OneOffOutgoing)
     └─ PotEntry  (actual amount saved in a given period)
 """
-
-from decimal import Decimal
 
 from django.db import models
 
@@ -69,6 +66,11 @@ class FrequencyMixin(models.Model):
 
     class Meta:
         abstract = True
+
+    @property
+    def short_frequency(self) -> str:
+        """Compact frequency label for dense list rows ("wk" / "mth" / "yr")."""
+        return {"weekly": "wk", "monthly": "mth", "yearly": "yr"}[self.frequency]
 
 
 class Account(models.Model):
@@ -167,26 +169,6 @@ class Outgoing(FrequencyMixin):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.category})"
-
-
-class OutgoingVariance(models.Model):
-    """Records the actual amount spent against a recurring outgoing for one period."""
-
-    outgoing = models.ForeignKey(Outgoing, on_delete=models.CASCADE, related_name="variances")
-    period_start = models.DateField()
-    actual_amount = models.DecimalField(max_digits=12, decimal_places=2)
-
-    class Meta:
-        unique_together = [("outgoing", "period_start")]
-        ordering = ["-period_start"]
-
-    def __str__(self) -> str:
-        return f"{self.outgoing} @ {self.period_start}"
-
-    @property
-    def delta(self) -> Decimal:
-        """Positive = overspent, negative = underspent."""
-        return self.actual_amount - self.outgoing.amount
 
 
 class OneOffOutgoing(models.Model):
