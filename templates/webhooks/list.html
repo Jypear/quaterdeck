@@ -5,8 +5,8 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">Webhooks</h1>
   <div>
-    <a href="{% url 'webhooks:deliveries' %}" class="btn btn-outline-secondary btn-sm">Delivery log</a>
-    <a href="{% url 'webhooks:endpoint_add' %}" class="btn btn-primary btn-sm">+ Add endpoint</a>
+    <a href="{% url 'webhooks:deliveries' %}" class="btn btn-outline-secondary btn-sm">{% include "_icon.html" with name="clock-history" class="me-1" %}Delivery log</a>
+    <a href="{% url 'webhooks:endpoint_add' %}" class="btn btn-primary btn-sm">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add endpoint</a>
   </div>
 </div>
 <p class="text-muted">
@@ -34,8 +34,8 @@
         <td><code>{{ endpoint.secret }}</code></td>
         <td>{% if endpoint.is_active %}Yes{% else %}No{% endif %}</td>
         <td class="text-end">
-          <a href="{% url 'webhooks:endpoint_edit' endpoint.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-          <a href="{% url 'webhooks:endpoint_delete' endpoint.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+          <a href="{% url 'webhooks:endpoint_edit' endpoint.pk %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="pencil-square" class="me-1" %}Edit</a>
+          <a href="{% url 'webhooks:endpoint_delete' endpoint.pk %}" class="btn btn-sm btn-outline-danger">{% include "_icon.html" with name="trash3" class="me-1" %}Delete</a>
         </td>
       </tr>
       {% endfor %}

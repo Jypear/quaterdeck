@@ -5,8 +5,8 @@
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h1 class="h3 mb-0">{{ project.name }}</h1>
   <div class="d-flex gap-2">
-    <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-    <a href="{% url 'projects:project_delete' project.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+    <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="pencil-square" class="me-1" %}Edit</a>
+    <a href="{% url 'projects:project_delete' project.pk %}" class="btn btn-sm btn-outline-danger">{% include "_icon.html" with name="trash3" class="me-1" %}Delete</a>
   </div>
 </div>
 {% if project.description %}<p>{{ project.description }}</p>{% endif %}
@@ -34,11 +34,11 @@
     <a href="{% url 'budget:pot_edit' row.pot.id %}">{{ row.pot.name }}</a>
     <span>
       {% if row.status == "ahead" %}
-      <span class="badge bg-success">Ahead</span>
+      <span class="badge bg-success">{% include "_icon.html" with name="arrow-up-short" class="me-1" %}Ahead</span>
       {% elif row.status == "behind" %}
-      <span class="badge bg-danger">Behind</span>
+      <span class="badge bg-danger">{% include "_icon.html" with name="arrow-down-short" class="me-1" %}Behind</span>
       {% else %}
-      <span class="badge bg-primary">On track</span>
+      <span class="badge bg-primary">{% include "_icon.html" with name="dash-circle" class="me-1" %}On track</span>
       {% endif %}
       <span class="text-muted small ms-2">{{ currency }} {{ row.saved_to_date|floatformat:2 }} saved</span>
     </span>
@@ -48,7 +48,7 @@
 {% else %}
 <p class="text-muted small">No pots linked.</p>
 {% endif %}
-<a href="{% url 'budget:pot_add' %}?linked_project={{ project.pk }}&amp;next={{ request.path|urlencode }}" class="btn btn-sm btn-outline-primary mb-4">+ Add pot to this project</a>
+<a href="{% url 'budget:pot_add' %}?linked_project={{ project.pk }}&amp;next={{ request.path|urlencode }}" class="btn btn-sm btn-outline-primary mb-4">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add pot to this project</a>
 
 <h2 class="h6 text-muted">Tasks</h2>
 {% if project.tasks.all %}
@@ -56,7 +56,11 @@
   {% for task in project.tasks.all %}
   <li class="list-group-item d-flex justify-content-between align-items-center">
     <span>{{ task.title }}</span>
-    <span class="badge bg-secondary">{{ task.get_status_display }}</span>
+    <span class="badge bg-secondary">
+      {% if task.status == "done" %}{% include "_icon.html" with name="check-circle-fill" class="me-1" %}
+      {% elif task.status == "in_progress" %}{% include "_icon.html" with name="arrow-repeat" class="me-1" %}
+      {% else %}{% include "_icon.html" with name="dash-circle" class="me-1" %}
+      {% endif %}{{ task.get_status_display }}</span>
   </li>
   {% endfor %}
 </ul>

@@ -9,8 +9,8 @@
     <small class="text-muted">Last updated {{ note.updated_at|date:"d M Y H:i" }}</small>
   </div>
   <div class="text-nowrap">
-    <a href="{% url 'notes:note_edit' note.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
-    <a href="{% url 'notes:note_delete' note.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+    <a href="{% url 'notes:note_edit' note.pk %}" class="btn btn-outline-secondary btn-sm">{% include "_icon.html" with name="pencil-square" class="me-1" %}Edit</a>
+    <a href="{% url 'notes:note_delete' note.pk %}" class="btn btn-outline-danger btn-sm">{% include "_icon.html" with name="trash3" class="me-1" %}Delete</a>
   </div>
 </div>
 <hr>

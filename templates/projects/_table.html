@@ -21,8 +21,8 @@
       <td>{{ project.note_count }}</td>
       <td>{{ project.pot_count }}</td>
       <td class="text-nowrap">
-        <a href="{% url 'projects:project_edit' project.pk %}" class="link-secondary small">Edit</a>
-        <a href="{% url 'projects:project_delete' project.pk %}" class="link-danger small ms-2">Delete</a>
+        <a href="{% url 'projects:project_edit' project.pk %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit project" %}</a>
+        <a href="{% url 'projects:project_delete' project.pk %}" class="link-danger small ms-2" title="Delete">{% include "_icon.html" with name="trash3" label="Delete project" %}</a>
       </td>
     </tr>
     {% endfor %}

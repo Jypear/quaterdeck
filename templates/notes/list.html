@@ -3,7 +3,7 @@
 {% block nav_notes %}active{% endblock %}
 {% block content %}
 {% url 'notes:note_add' as note_add_url %}
-{% include "_page_header.html" with title="Notes" action_url=note_add_url action_label="+ Add note" %}
+{% include "_page_header.html" with title="Notes" action_url=note_add_url action_label="+ Add note" action_icon="plus-lg" %}
 
 <form id="note-filters" class="row g-2 align-items-end mb-3"
       hx-get="{% url 'notes:list' %}"

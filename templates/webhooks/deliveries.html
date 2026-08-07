@@ -3,7 +3,7 @@
 {% block nav_webhooks %}active{% endblock %}
 {% block content %}
 {% url 'webhooks:list' as webhooks_list_url %}
-{% include "_page_header.html" with title="Webhook deliveries" action_url=webhooks_list_url action_label="Back to endpoints" action_class="btn-outline-secondary" %}
+{% include "_page_header.html" with title="Webhook deliveries" action_url=webhooks_list_url action_label="Back to endpoints" action_class="btn-outline-secondary" action_icon="arrow-left-short" %}
 {% if deliveries %}
 <div class="table-responsive">
   <table class="table align-middle">
@@ -24,9 +24,9 @@
         <td>{{ delivery.endpoint.url }}</td>
         <td>
           {% if delivery.success %}
-          <span class="badge text-bg-success">{{ delivery.status_code|default:"OK" }}</span>
+          <span class="badge text-bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}{{ delivery.status_code|default:"OK" }}</span>
           {% else %}
-          <span class="badge text-bg-danger">{{ delivery.status_code|default:"Failed" }}</span>
+          <span class="badge text-bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}{{ delivery.status_code|default:"Failed" }}</span>
           {% endif %}
         </td>
         <td class="text-muted small">{{ delivery.error }}</td>

@@ -94,6 +94,16 @@ h1, h2, h3, h4, h5, h6,
   background-color: rgba(var(--qd-brass-rgb), 0.35);
 }
 
+/* Bootstrap Icons subset (static/vendor/bootstrap-icons/sprite.svg), rendered
+   via templates/_icon.html. Sized to the current line and coloured by the
+   surrounding text/link/badge, so it follows the light/dark theme for free. */
+.icon {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+  vertical-align: -0.125em;
+}
+
 /* Filled buttons are a minted brass chip regardless of page theme — the
    button supplies its own background, so it doesn't need to vary with
    light/dark like text and links do. */

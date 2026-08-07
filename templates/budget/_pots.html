@@ -8,14 +8,14 @@
           <h5 class="card-title mb-0">{{ row.pot.name }}</h5>
           <div class="d-flex align-items-center gap-2">
             {% if row.status == "ahead" %}
-            <span class="badge bg-success">Ahead</span>
+            <span class="badge bg-success">{% include "_icon.html" with name="arrow-up-short" class="me-1" %}Ahead</span>
             {% elif row.status == "behind" %}
-            <span class="badge bg-danger">Behind</span>
+            <span class="badge bg-danger">{% include "_icon.html" with name="arrow-down-short" class="me-1" %}Behind</span>
             {% else %}
-            <span class="badge bg-primary">On track</span>
+            <span class="badge bg-primary">{% include "_icon.html" with name="dash-circle" class="me-1" %}On track</span>
             {% endif %}
-            <a href="{% url 'budget:pot_edit' row.pot.id %}" class="link-secondary small">Edit</a>
-            <a href="{% url 'budget:pot_delete' row.pot.id %}" class="link-danger small">Delete</a>
+            <a href="{% url 'budget:pot_edit' row.pot.id %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit pot" %}</a>
+            <a href="{% url 'budget:pot_delete' row.pot.id %}" class="link-danger small" title="Delete">{% include "_icon.html" with name="trash3" label="Delete pot" %}</a>
           </div>
         </div>
         <p class="text-muted small mb-3">

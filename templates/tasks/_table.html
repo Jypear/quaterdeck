@@ -22,16 +22,29 @@
               hx-target="#task-results" hx-swap="innerHTML" hx-include="#task-filters">
           {% csrf_token %}
           {% if task.status == 'done' %}
-          <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Reopen">↩</button>
+          <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Reopen" aria-label="Reopen task">
+            {% include "_icon.html" with name="arrow-counterclockwise" %}</button>
           {% else %}
-          <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark done">✓</button>
+          <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1" title="Mark done" aria-label="Mark task done">
+            {% include "_icon.html" with name="check-lg" %}</button>
           {% endif %}
         </form>
       </td>
       <td class="{% if task.status == 'done' %}text-decoration-line-through{% endif %}">{{ task.title }}</td>
       <td>{{ task.due_date|default:"—" }}</td>
-      <td><span class="badge bg-secondary">{{ task.get_priority_display }}</span></td>
-      <td><span class="badge border text-body-secondary">{{ task.get_status_display }}</span></td>
+      <td>
+        <span class="badge {% if task.priority == 'high' %}bg-danger{% elif task.priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+          {% include "_icon.html" with name="flag-fill" class="me-1" %}{{ task.get_priority_display }}
+        </span>
+      </td>
+      <td>
+        <span class="badge border text-body-secondary">
+          {% if task.status == 'done' %}{% include "_icon.html" with name="check-circle-fill" class="me-1" %}
+          {% elif task.status == 'in_progress' %}{% include "_icon.html" with name="arrow-repeat" class="me-1" %}
+          {% else %}{% include "_icon.html" with name="dash-circle" class="me-1" %}
+          {% endif %}{{ task.get_status_display }}
+        </span>
+      </td>
       <td>
         {% if task.linked_project %}
         <a href="{{ task.linked_project.get_absolute_url }}" class="link-secondary">{{ task.linked_project.name }}</a>
@@ -39,8 +52,8 @@
       </td>
       <td>{{ task.budget_amount|default:"—" }}</td>
       <td class="text-nowrap">
-        <a href="{% url 'tasks:task_edit' task.pk %}" class="link-secondary small">Edit</a>
-        <a href="{% url 'tasks:task_delete' task.pk %}" class="link-danger small ms-2">Delete</a>
+        <a href="{% url 'tasks:task_edit' task.pk %}" class="link-secondary small" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit task" %}</a>
+        <a href="{% url 'tasks:task_delete' task.pk %}" class="link-danger small ms-2" title="Delete">{% include "_icon.html" with name="trash3" label="Delete task" %}</a>
       </td>
     </tr>
     {% endfor %}
