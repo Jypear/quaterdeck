@@ -10,16 +10,6 @@
       hx-target="#budget-timeline"
       hx-push-url="true"
       hx-trigger="change">
-  <div class="col-auto">
-    <span class="form-label d-block">Horizon</span>
-    <div class="btn-group" role="group" aria-label="Timeline horizon">
-      {% for value in month_choices %}
-      <input type="radio" class="btn-check" name="months" id="months-{{ value }}" value="{{ value }}"
-             {% if value == months %}checked{% endif %} autocomplete="off">
-      <label class="btn btn-outline-primary" for="months-{{ value }}">{{ value }} mo</label>
-      {% endfor %}
-    </div>
-  </div>
   <div class="col">
     <span class="form-label d-block">Accounts</span>
     <div class="d-flex flex-wrap gap-3">
@@ -52,15 +42,8 @@
   var container = document.getElementById("budget-timeline");
   if (!container) return;
 
-  function pointFor(svg, event) {
-    var pt = svg.createSVGPoint();
-    pt.x = event.clientX;
-    pt.y = event.clientY;
-    return pt.matrixTransform(svg.getScreenCTM().inverse());
-  }
-
-  function balanceAt(lane, x) {
-    var script = document.getElementById(lane.dataset.hoverId);
+  function balanceAt(account, x) {
+    var script = document.getElementById(account.dataset.hoverId);
     if (!script) return null;
     var points = JSON.parse(script.textContent);
     var current = null;
@@ -72,36 +55,34 @@
   }
 
   function reset() {
-    container.querySelectorAll(".timeline-crosshair").forEach(function (line) {
-      line.style.display = "none";
-    });
-    container.querySelectorAll(".timeline-lane").forEach(function (lane) {
-      lane.classList.remove("is-hovering");
-      var label = lane.querySelector(".timeline-lane-balance");
-      if (label) label.textContent = "Net " + lane.dataset.currency + " " + lane.dataset.endBalance;
+    var crosshair = container.querySelector(".timeline-crosshair");
+    if (crosshair) crosshair.style.display = "none";
+    container.querySelectorAll(".timeline-account").forEach(function (account) {
+      account.classList.remove("is-hovering");
+      var label = account.querySelector(".timeline-account-balance");
+      if (label) label.textContent = "Net " + account.dataset.currency + " " + account.dataset.endBalance;
     });
   }
 
   container.addEventListener("mousemove", function (event) {
-    var svg = event.target.closest(".timeline-svg");
-    if (!svg) return;
-    var loc = pointFor(svg, event);
+    var grid = container.querySelector(".timeline-grid");
+    if (!grid) return;
+    var x = event.clientX - grid.getBoundingClientRect().left;
 
-    var crosshair = svg.querySelector(".timeline-crosshair");
+    var crosshair = container.querySelector(".timeline-crosshair");
     if (crosshair) {
-      crosshair.setAttribute("x1", loc.x);
-      crosshair.setAttribute("x2", loc.x);
+      crosshair.style.left = x + "px";
       crosshair.style.display = "";
     }
 
-    svg.querySelectorAll(".timeline-lane").forEach(function (lane) {
-      var point = balanceAt(lane, loc.x);
-      var label = lane.querySelector(".timeline-lane-balance");
+    container.querySelectorAll(".timeline-account").forEach(function (account) {
+      var point = balanceAt(account, x);
+      var label = account.querySelector(".timeline-account-balance");
       if (!label) return;
-      lane.classList.add("is-hovering");
+      account.classList.add("is-hovering");
       label.textContent = point
-        ? "As of " + point.date + ": " + lane.dataset.currency + " " + point.balance
-        : "Before first entry: " + lane.dataset.currency + " 0.00";
+        ? "As of " + point.date + ": " + account.dataset.currency + " " + point.balance
+        : "Before first entry: " + account.dataset.currency + " 0.00";
     });
   });
 
@@ -113,14 +94,14 @@
     return div.innerHTML;
   }
 
-  function showCluster(id) {
+  function showCluster(clusterId, detailId) {
     var script = document.getElementById("timeline-clusters");
-    var panel = document.getElementById("timeline-detail");
+    var panel = document.getElementById(detailId);
     if (!script || !panel) return;
-    var data = JSON.parse(script.textContent)[id];
+    var data = JSON.parse(script.textContent)[clusterId];
     if (!data) return;
-    var lane = container.querySelector(".timeline-lane");
-    var currency = lane ? lane.dataset.currency : "";
+    var account = panel.closest(".timeline-account");
+    var currency = account ? account.dataset.currency : "";
     var rows = data.entries.map(function (entry) {
       return '<li class="list-group-item d-flex justify-content-between align-items-center ' + entry.css + '">' +
         "<span>" + escapeHtml(entry.label) + "</span>" +
@@ -128,7 +109,7 @@
     }).join("");
     panel.innerHTML =
       '<div class="card-header d-flex justify-content-between flex-wrap gap-2">' +
-      "<strong>" + escapeHtml(data.account) + " — " + escapeHtml(data.date) + "</strong>" +
+      "<strong>" + escapeHtml(data.date) + "</strong>" +
       "<span>Balance " + currency + " " + data.balance_str + "</span></div>" +
       '<ul class="list-group list-group-flush">' + rows + "</ul>";
     panel.classList.remove("d-none");
@@ -137,11 +118,14 @@
   container.addEventListener("click", function (event) {
     var cluster = event.target.closest("[data-cluster]");
     if (cluster) {
-      showCluster(cluster.dataset.cluster);
+      var account = cluster.closest(".timeline-account");
+      if (account) showCluster(cluster.dataset.cluster, account.dataset.detailId);
       return;
     }
-    if (event.target.closest(".timeline-svg")) {
-      document.getElementById("timeline-detail").classList.add("d-none");
+    var account = event.target.closest(".timeline-account");
+    if (account && event.target.closest(".timeline-svg")) {
+      var panel = document.getElementById(account.dataset.detailId);
+      if (panel) panel.classList.add("d-none");
     }
   });
 
@@ -150,7 +134,8 @@
     var cluster = event.target.closest("[data-cluster]");
     if (!cluster) return;
     event.preventDefault();
-    showCluster(cluster.dataset.cluster);
+    var account = cluster.closest(".timeline-account");
+    if (account) showCluster(cluster.dataset.cluster, account.dataset.detailId);
   });
 })();
 </script>

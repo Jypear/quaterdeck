@@ -832,11 +832,15 @@ class TimelineClusteringTests(TestCase):
         assert len(clusters) == 2
         assert all(c["count"] == 1 for c in clusters)
 
-    def test_chart_width_scales_with_horizon(self) -> None:
-        lane = AccountLane(account=self.account, stops=[], end_balance=Decimal("0"))
-        narrow = _timeline_svg([lane], date(2026, 7, 1), date(2026, 8, 1), "£")
-        wide = _timeline_svg([lane], date(2026, 7, 1), date(2027, 1, 1), "£")
-        assert wide["width"] > narrow["width"]
+    def test_each_account_gets_its_own_svg_and_detail_panel(self) -> None:
+        other = Account.objects.create(name="Other")
+        lanes = [
+            AccountLane(account=self.account, stops=[], end_balance=Decimal("0")),
+            AccountLane(account=other, stops=[], end_balance=Decimal("0")),
+        ]
+        svg = _timeline_svg(lanes, date(2026, 7, 1), date(2026, 8, 1), "£")
+        assert [lane["account"].id for lane in svg["lanes"]] == [self.account.id, other.id]
+        assert svg["lanes"][0]["hover_id"] != svg["lanes"][1]["hover_id"]
 
     def test_dense_timeline_page_renders_cluster_details(self) -> None:
         category = OutgoingCategory.objects.create(name="Bills")
@@ -850,7 +854,7 @@ class TimelineClusteringTests(TestCase):
                 recurring_day=1,
             )
 
-        response = self.client.get(reverse("budget:timeline"), {"months": 6})
+        response = self.client.get(reverse("budget:timeline"))
 
         assert response.status_code == 200
         assert b"timeline-clusters" in response.content
