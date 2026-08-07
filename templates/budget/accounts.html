@@ -3,7 +3,7 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 {% url 'budget:account_add' as account_add_url %}
-{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="+ Add account" action_icon="plus-lg" %}
+{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="Add account" action_icon="plus-lg" %}
 {% include "budget/_subnav.html" %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
