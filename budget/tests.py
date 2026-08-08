@@ -30,11 +30,13 @@ from budget.services import (
     category_totals,
     normalise,
     outgoing_amount,
+    outgoing_rows,
     periods_between,
     pot_progress,
     prefetched_accounts,
     resolve_transfer_amounts,
     scheduled_dates,
+    sort_outgoing_rows,
     to_display,
     transfer_plan,
     upcoming_yearly_bills,
@@ -1050,39 +1052,148 @@ class OutgoingCreateViewTests(TestCase):
         assert Outgoing.objects.filter(name="Internet", account=account).exists()
 
 
-class AccountsCategoryFilterTests(TestCase):
-    def test_categories_param_narrows_rendered_outgoings(self) -> None:
-        account = Account.objects.create(name="Personal")
-        bills = OutgoingCategory.objects.create(name="Bills")
-        subs = OutgoingCategory.objects.create(name="Subscriptions")
-        Outgoing.objects.create(
-            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
-        )
-        Outgoing.objects.create(
-            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
-        )
+class AccountsAccountFilterTests(TestCase):
+    """The category filter moved to the Outgoings page (issue #10); Accounts got
+    an account filter in its place, matching Overview/Timeline/Flow."""
 
-        response = self.client.get(reverse("budget:accounts"), {"categories": [bills.id]})
+    def test_accounts_param_narrows_rendered_cards(self) -> None:
+        # HX request, so the response is just the account-card partial — the
+        # full page's own filter form lists every account's name regardless
+        # of selection, which would otherwise collide with this assertion.
+        personal = Account.objects.create(name="Personal")
+        Account.objects.create(name="Joint")
+
+        response = self.client.get(reverse("budget:accounts"), {"accounts": [personal.id]}, HTTP_HX_REQUEST="true")
 
         assert response.status_code == 200
-        assert b"Rent" in response.content
-        assert b"Netflix" not in response.content
+        assert b"Personal" in response.content
+        assert b"Joint" not in response.content
 
-    def test_no_categories_param_shows_everything(self) -> None:
-        account = Account.objects.create(name="Personal")
-        bills = OutgoingCategory.objects.create(name="Bills")
-        subs = OutgoingCategory.objects.create(name="Subscriptions")
-        Outgoing.objects.create(
-            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
-        )
-        Outgoing.objects.create(
-            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
-        )
+    def test_no_accounts_param_shows_everything(self) -> None:
+        Account.objects.create(name="Personal")
+        Account.objects.create(name="Joint")
 
         response = self.client.get(reverse("budget:accounts"))
 
+        assert b"Personal" in response.content
+        assert b"Joint" in response.content
+
+
+class OutgoingRowsTests(TestCase):
+    def test_one_off_inside_period_is_included_and_outside_is_not(self) -> None:
+        account = Account.objects.create(name="Personal")
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        OneOffOutgoing.objects.create(name="In period", amount=Decimal("50"), due_date=period.start, account=account)
+        OneOffOutgoing.objects.create(name="Outside period", amount=Decimal("50"), due_date=period.end, account=account)
+
+        rows = outgoing_rows(settings.budget_mode, period)
+
+        names = {row.name for row in rows}
+        assert "In period" in names
+        assert "Outside period" not in names
+
+    def test_yearly_period_amount_matches_outgoing_amount_not_raw_amount(self) -> None:
+        account = Account.objects.create(name="Personal")
+        category = OutgoingCategory.objects.create(name="Bills")
+        outgoing = Outgoing.objects.create(
+            name="Insurance",
+            amount=Decimal("1200"),
+            category=category,
+            frequency="yearly",
+            yearly_billing=Outgoing.YearlyBilling.DUE_PERIOD,
+            recurring_day=1,
+            recurring_month=1,
+            account=account,
+        )
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+
+        rows = outgoing_rows(settings.budget_mode, period)
+
+        row = next(r for r in rows if r.pk == outgoing.id)
+        assert row.period_amount == outgoing_amount(outgoing, settings.budget_mode, period)
+
+    def test_category_filter_drops_one_offs(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        OneOffOutgoing.objects.create(name="One-off", amount=Decimal("50"), due_date=period.start, account=account)
+
+        rows = outgoing_rows(settings.budget_mode, period, category_ids=[bills.id])
+
+        assert rows == []
+
+
+class OutgoingSortTests(TestCase):
+    def test_default_sort_is_amount_descending(self) -> None:
+        account = Account.objects.create(name="Personal")
+        category = OutgoingCategory.objects.create(name="Bills")
+        Outgoing.objects.create(
+            name="Small", amount=Decimal("10"), category=category, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Big", amount=Decimal("500"), category=category, frequency="monthly", account=account
+        )
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        rows = outgoing_rows(settings.budget_mode, period)
+
+        sorted_rows, col, direction = sort_outgoing_rows(rows, None, None)
+
+        assert col == "amount"
+        assert direction == "desc"
+        assert [r.name for r in sorted_rows] == ["Big", "Small"]
+
+    def test_invalid_sort_falls_back_to_default(self) -> None:
+        _, col, direction = sort_outgoing_rows([], "not-a-column", "sideways")
+        assert col == "amount"
+        assert direction == "desc"
+
+
+class OutgoingListViewTests(TestCase):
+    def test_page_renders(self) -> None:
+        response = self.client.get(reverse("budget:outgoings"))
+        assert response.status_code == 200
+
+    def test_hx_request_returns_partial(self) -> None:
+        response = self.client.get(reverse("budget:outgoings"), HTTP_HX_REQUEST="true")
+        assert response.status_code == 200
+        self.assertTemplateUsed(response, "budget/_outgoings.html")
+        self.assertTemplateNotUsed(response, "budget/outgoings.html")
+
+    def test_accounts_param_narrows_rows(self) -> None:
+        personal = Account.objects.create(name="Personal")
+        joint = Account.objects.create(name="Joint")
+        category = OutgoingCategory.objects.create(name="Bills")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=category, frequency="monthly", account=personal
+        )
+        Outgoing.objects.create(
+            name="Mortgage", amount=Decimal("1200"), category=category, frequency="monthly", account=joint
+        )
+
+        response = self.client.get(reverse("budget:outgoings"), {"accounts": [personal.id]})
+
         assert b"Rent" in response.content
-        assert b"Netflix" in response.content
+        assert b"Mortgage" not in response.content
+
+    def test_categories_param_narrows_rows(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        subs = OutgoingCategory.objects.create(name="Subscriptions")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
+        )
+
+        response = self.client.get(reverse("budget:outgoings"), {"categories": [bills.id]})
+
+        assert b"Rent" in response.content
+        assert b"Netflix" not in response.content
 
 
 class NewCrudSmokeTests(TestCase):
@@ -1326,7 +1437,12 @@ class DetailViewSmokeTests(TestCase):
 
     def test_account_detail_split_transfer_amount_matches_accounts_page(self) -> None:
         """Guards resolving transfer_amounts across all accounts on the detail
-        page, not just this account — required for split/surplus transfers."""
+        page, not just this account — required for split/surplus transfers.
+
+        Expected value comes straight from `resolve_transfer_amounts` (the accounts
+        page itself no longer annotates transfers with `.effective_amount` — it
+        stopped listing them per-account, see issue #10 — so it can't serve as the
+        oracle here any more)."""
         IncomeStream.objects.create(name="A Salary", amount=Decimal("3000"), frequency="monthly", account=self.account)
         IncomeStream.objects.create(name="B Salary", amount=Decimal("2000"), frequency="monthly", account=self.other)
         Outgoing.objects.create(
@@ -1340,13 +1456,9 @@ class DetailViewSmokeTests(TestCase):
             name="A to joint", from_account=self.account, to_account=self.other, calc_method=Transfer.CalcMethod.SPLIT
         )
 
-        accounts_response = self.client.get(reverse("budget:accounts"))
-        accounts_summary = next(
-            s for s in accounts_response.context["account_summaries"] if s.account.id == self.account.id
-        )
-        expected = next(
-            t.effective_amount for t in accounts_summary.account.transfers_out.all() if t.id == a_to_joint.id
-        )
+        settings = Settings.get()
+        period = active_period(settings.budget_mode, settings.budget_start_day)
+        expected = resolve_transfer_amounts(prefetched_accounts(), settings.budget_mode, period)[a_to_joint.id]
 
         detail_response = self.client.get(reverse("budget:account_detail", args=[self.account.id]))
         actual = next(

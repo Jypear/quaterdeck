@@ -41,7 +41,7 @@ for (const [src, dest] of FILES) {
 const ICON_NAMES = [
   // nav / subnav
   "speedometer2", "wallet2", "list-task", "calendar3", "kanban", "sticky", "gear",
-  "graph-up", "bank2", "piggy-bank", "clock-history", "diagram-3",
+  "graph-up", "bank2", "receipt", "piggy-bank", "clock-history", "diagram-3",
   // theme toggle
   "sun-fill", "moon-fill", "circle-half",
   // actions

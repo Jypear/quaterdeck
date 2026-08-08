@@ -155,6 +155,13 @@ class OutgoingCategory(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def hue(self) -> int:
+        """Deterministic hue (0-359) for this category's colour chip, derived from
+        the primary key — every category gets a distinct, stable colour with no
+        extra field or migration to maintain (see `.cat-chip` in quaterdeck.css)."""
+        return (self.pk or 0) * 47 % 360
+
 
 class Outgoing(FrequencyMixin):
     class YearlyBilling(models.TextChoices):

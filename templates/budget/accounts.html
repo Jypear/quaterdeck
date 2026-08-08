@@ -22,19 +22,16 @@
     </div>
   </div>
   <div class="col">
-    <span class="form-label d-block">Categories</span>
-    <div class="d-flex flex-wrap align-items-center gap-3">
-      {% for category in categories %}
-      <div class="form-check form-check-inline mb-0">
-        <input class="form-check-input" type="checkbox" name="categories" value="{{ category.id }}"
-               id="category-{{ category.id }}"
-               {% if not selected_category_ids or category.id in selected_category_ids %}checked{% endif %}>
-        <label class="form-check-label" for="category-{{ category.id }}">{{ category.name }}</label>
-        <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit category" %}</a>
-        <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete category" %}</a>
+    <span class="form-label d-block">Accounts</span>
+    <div class="d-flex flex-wrap gap-3">
+      {% for account in all_accounts %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="accounts" value="{{ account.id }}"
+               id="acct-filter-{{ account.id }}"
+               {% if not selected_account_ids or account.id in selected_account_ids %}checked{% endif %}>
+        <label class="form-check-label" for="acct-filter-{{ account.id }}">{{ account.name }}</label>
       </div>
       {% endfor %}
-      <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
     </div>
   </div>
 </form>
