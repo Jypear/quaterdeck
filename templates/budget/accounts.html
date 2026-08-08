@@ -6,20 +6,6 @@
 {% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="Add account" action_icon="plus-lg" %}
 {% include "budget/_subnav.html" %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <span class="small text-uppercase text-muted me-2">Categories</span>
-    {% for category in categories %}
-    <span class="badge border text-body-secondary me-1">
-      {{ category.name }}
-      <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit category" %}</a>
-      <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete category" %}</a>
-    </span>
-    {% endfor %}
-  </div>
-  <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
-</div>
-
 <form id="account-filters" class="row g-3 align-items-start mb-4"
       hx-get="{% url 'budget:accounts' %}"
       hx-target="#account-summaries"
@@ -33,6 +19,22 @@
              {% if value == mode %}checked{% endif %} autocomplete="off">
       <label class="btn btn-outline-primary" for="acct-mode-{{ value }}">{{ label }}</label>
       {% endfor %}
+    </div>
+  </div>
+  <div class="col">
+    <span class="form-label d-block">Categories</span>
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      {% for category in categories %}
+      <div class="form-check form-check-inline mb-0">
+        <input class="form-check-input" type="checkbox" name="categories" value="{{ category.id }}"
+               id="category-{{ category.id }}"
+               {% if not selected_category_ids or category.id in selected_category_ids %}checked{% endif %}>
+        <label class="form-check-label" for="category-{{ category.id }}">{{ category.name }}</label>
+        <a href="{% url 'budget:category_edit' category.id %}" class="link-secondary ms-1" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit category" %}</a>
+        <a href="{% url 'budget:category_delete' category.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete category" %}</a>
+      </div>
+      {% endfor %}
+      <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
     </div>
   </div>
 </form>

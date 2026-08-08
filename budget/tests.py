@@ -27,6 +27,7 @@ from budget.services import (
     active_period,
     budget_flow,
     budget_summary,
+    category_totals,
     normalise,
     outgoing_amount,
     periods_between,
@@ -335,6 +336,85 @@ class BudgetFlowTests(TestCase):
         graph = budget_flow(self.mode, self.period)
         assert not any(link.kind == "surplus" for link in graph.links)
         assert not any(node.kind == "surplus" for node in graph.nodes)
+
+    def test_group_by_category_collapses_same_account_bills_into_one_node(self) -> None:
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=self.category, frequency="monthly", account=self.personal
+        )
+        Outgoing.objects.create(
+            name="Spotify", amount=Decimal("10"), category=self.category, frequency="monthly", account=self.personal
+        )
+        graph = budget_flow(self.mode, self.period, group_by_category=True)
+        bill_links = [link for link in graph.links if link.kind == "bill"]
+        assert len(bill_links) == 1
+        assert bill_links[0].target == "Bills"
+        assert bill_links[0].value == Decimal("25")
+
+    def test_group_by_category_shares_one_node_across_accounts(self) -> None:
+        Outgoing.objects.create(
+            name="Home insurance",
+            amount=Decimal("20"),
+            category=self.category,
+            frequency="monthly",
+            account=self.personal,
+        )
+        Outgoing.objects.create(
+            name="Car insurance", amount=Decimal("30"), category=self.category, frequency="monthly", account=self.joint
+        )
+        graph = budget_flow(self.mode, self.period, group_by_category=True)
+        assert len([node for node in graph.nodes if node.name == "Bills"]) == 1
+        bill_links = [link for link in graph.links if link.kind == "bill"]
+        assert {link.source for link in bill_links} == {"Personal", "Joint"}
+        assert {link.target for link in bill_links} == {"Bills"}
+
+    def test_group_by_category_defaults_to_ungrouped(self) -> None:
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=self.category, frequency="monthly", account=self.personal
+        )
+        Outgoing.objects.create(
+            name="Spotify", amount=Decimal("10"), category=self.category, frequency="monthly", account=self.personal
+        )
+        graph = budget_flow(self.mode, self.period)
+        names = sorted(node.name for node in graph.nodes if node.kind == "bill")
+        assert names == ["Netflix", "Spotify"]
+
+
+class CategoryTotalsTests(TestCase):
+    def test_totals_group_and_normalise_by_category(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        subs = OutgoingCategory.objects.create(name="Subscriptions")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Council tax", amount=Decimal("1200"), category=bills, frequency="yearly", account=account
+        )
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
+        )
+        period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        totals = category_totals(prefetched_accounts(), Settings.BudgetMode.MONTHLY, period)
+
+        by_name = {row.category.name: row.total for row in totals}
+        assert by_name["Bills"] == Decimal("800") + Decimal("1200") / 12
+        assert by_name["Subscriptions"] == Decimal("15")
+        assert [row.category.name for row in totals] == ["Bills", "Subscriptions"]
+
+    def test_category_ids_restricts_which_categories_appear(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        subs = OutgoingCategory.objects.create(name="Subscriptions")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
+        )
+        period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        totals = category_totals(prefetched_accounts(), Settings.BudgetMode.MONTHLY, period, category_ids=[bills.id])
+
+        assert [row.category.name for row in totals] == ["Bills"]
 
 
 class PeriodsBetweenTests(TestCase):
@@ -870,6 +950,41 @@ class OutgoingCreateViewTests(TestCase):
         )
         assert response.status_code == 302
         assert Outgoing.objects.filter(name="Internet", account=account).exists()
+
+
+class AccountsCategoryFilterTests(TestCase):
+    def test_categories_param_narrows_rendered_outgoings(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        subs = OutgoingCategory.objects.create(name="Subscriptions")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
+        )
+
+        response = self.client.get(reverse("budget:accounts"), {"categories": [bills.id]})
+
+        assert response.status_code == 200
+        assert b"Rent" in response.content
+        assert b"Netflix" not in response.content
+
+    def test_no_categories_param_shows_everything(self) -> None:
+        account = Account.objects.create(name="Personal")
+        bills = OutgoingCategory.objects.create(name="Bills")
+        subs = OutgoingCategory.objects.create(name="Subscriptions")
+        Outgoing.objects.create(
+            name="Rent", amount=Decimal("800"), category=bills, frequency="monthly", account=account
+        )
+        Outgoing.objects.create(
+            name="Netflix", amount=Decimal("15"), category=subs, frequency="monthly", account=account
+        )
+
+        response = self.client.get(reverse("budget:accounts"))
+
+        assert b"Rent" in response.content
+        assert b"Netflix" in response.content
 
 
 class NewCrudSmokeTests(TestCase):

@@ -1,3 +1,12 @@
+{% if category_totals %}
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
+  <span class="text-uppercase text-muted">By category</span>
+  {% for row in category_totals %}
+  <span class="badge border text-body-secondary">{{ row.category.name }}: {{ currency }} {{ row.total|floatformat:2 }}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if account_summaries %}
 <div class="account-grid">
   {% for row in account_summaries %}
@@ -53,9 +62,9 @@
         <h6 class="small text-uppercase text-muted mb-0">Outgoings ({{ currency }})</h6>
         <a href="{% url 'budget:outgoing_add' %}?account={{ row.account.id }}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
       </div>
-      {% if row.account.outgoings.all %}
+      {% if row.account.filtered_outgoings %}
       <ul class="list-group list-group-flush small mb-3">
-        {% for outgoing in row.account.outgoings.all %}
+        {% for outgoing in row.account.filtered_outgoings %}
         <li class="list-group-item px-0 {% if outgoing.due_this_period %}list-group-item-warning{% endif %}">
           <div class="d-flex align-items-baseline gap-2">
             <span class="entry-name">{{ outgoing.name }}</span>
@@ -66,8 +75,8 @@
               <a href="{% url 'budget:outgoing_delete' outgoing.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete outgoing" %}</a>
             </span>
           </div>
-          {% if outgoing.frequency == "yearly" and outgoing.recurring_month or outgoing.pot_covered is not None %}
           <div class="entry-meta">
+            <span class="badge border text-body-secondary">{{ outgoing.category.name }}</span>
             {% if outgoing.frequency == "yearly" and outgoing.recurring_month %}
             <span class="text-muted">due {{ outgoing.recurring_day }}/{{ outgoing.recurring_month|stringformat:"02d" }}</span>
             {% if outgoing.due_this_period %}
@@ -85,7 +94,6 @@
               {% endif %}
             {% endif %}
           </div>
-          {% endif %}
         </li>
         {% endfor %}
       </ul>

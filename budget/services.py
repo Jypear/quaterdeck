@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
-from budget.models import Account, IncomeStream, Outgoing, Pot, PotEntry, Transfer
+from budget.models import Account, IncomeStream, Outgoing, OutgoingCategory, Pot, PotEntry, Transfer
 from core.models import Settings
 
 if TYPE_CHECKING:
@@ -422,7 +422,7 @@ class BudgetSummary:
 def prefetched_accounts(account_ids: Iterable[int] | None = None) -> list[Account]:
     queryset = Account.objects.filter(is_active=True).prefetch_related(
         "income_streams",
-        "outgoings",
+        "outgoings__category",
         "transfers_in",
         "transfers_out",
         "one_off_outgoings",
@@ -483,6 +483,30 @@ def budget_summary(mode: str, period: Period, account_ids: Iterable[int] | None 
 
 
 @dataclass
+class CategoryTotal:
+    category: OutgoingCategory
+    total: Decimal
+
+
+def category_totals(
+    accounts: Iterable[Account], mode: str, period: Period, category_ids: Iterable[int] | None = None
+) -> list[CategoryTotal]:
+    """Per-`period` outgoings total for each category present in `accounts`, ordered by
+    category name. `category_ids`, if given, restricts both which outgoings are summed
+    and which categories appear — an empty category is simply omitted. Expects `accounts`
+    from `prefetched_accounts` (its `outgoings__category` prefetch avoids N+1 here)."""
+    totals: dict[OutgoingCategory, Decimal] = {}
+    for account in accounts:
+        for outgoing in account.outgoings.all():
+            if category_ids is not None and outgoing.category_id not in category_ids:
+                continue
+            totals[outgoing.category] = totals.get(outgoing.category, ZERO) + outgoing_amount(outgoing, mode, period)
+    return [
+        CategoryTotal(category=category, total=totals[category]) for category in sorted(totals, key=lambda c: c.name)
+    ]
+
+
+@dataclass
 class FlowNode:
     name: str  # unique among all nodes — the presentation layer keys ECharts sankey nodes by name
     kind: str  # "income" / "account" / "bill" / "surplus" / "pot" / "unallocated"
@@ -502,7 +526,9 @@ class FlowGraph:
     links: list[FlowLink] = field(default_factory=list)
 
 
-def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = None) -> FlowGraph:
+def budget_flow(
+    mode: str, period: Period, account_ids: Iterable[int] | None = None, group_by_category: bool = False
+) -> FlowGraph:
     """Sankey-shaped view of one period's money movement: income -> accounts
     -> bills/one-offs, netted transfers between accounts, and each account's
     surplus pooled into a "Surplus" node that fans out to pot contributions
@@ -510,6 +536,12 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
 
     Node names must be unique (see `FlowNode`); collisions (e.g. two bills
     both named "Insurance") get a disambiguating " (2)" suffix.
+
+    `group_by_category=True` collapses an account's bills into one node per
+    `OutgoingCategory` (one-offs, which have no category, bucket into a
+    shared "One-offs" node) instead of one node per bill — a category node is
+    shared across every account that has a bill in it, so it fans in from
+    several accounts at once rather than being duplicated per account.
 
     Overspent accounts (net <= 0) contribute no surplus link — there's
     nothing to flow onward. Transfers to/from an account outside the
@@ -540,6 +572,15 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
     transfers_out_total: dict[int, Decimal] = {}
     net_transfers: dict[tuple[int, int], Decimal] = {}
 
+    category_node_names: dict[str, str] = {}  # category name -> shared node name, only used when grouping
+
+    def category_node(name: str) -> str:
+        if name not in category_node_names:
+            category_node_names[name] = add_node(name, "bill")
+        return category_node_names[name]
+
+    category_bill_totals: dict[tuple[int, str], Decimal] = {}  # (account_id, category name) -> total
+
     for account in accounts:
         for income in account.income_streams.all():
             amount = normalise(income.amount, income.frequency, mode)
@@ -547,11 +588,19 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
 
         for outgoing in account.outgoings.all():
             amount = outgoing_amount(outgoing, mode, period)
-            add_link(account_names[account.id], add_node(outgoing.name, "bill"), amount, "bill")
+            if group_by_category:
+                key = (account.id, outgoing.category.name)
+                category_bill_totals[key] = category_bill_totals.get(key, ZERO) + amount
+            else:
+                add_link(account_names[account.id], add_node(outgoing.name, "bill"), amount, "bill")
 
         for one_off in account.one_off_outgoings.all():
             if period.start <= one_off.due_date < period.end:
-                add_link(account_names[account.id], add_node(one_off.name, "bill"), one_off.amount, "bill")
+                if group_by_category:
+                    key = (account.id, "One-offs")
+                    category_bill_totals[key] = category_bill_totals.get(key, ZERO) + one_off.amount
+                else:
+                    add_link(account_names[account.id], add_node(one_off.name, "bill"), one_off.amount, "bill")
 
         for transfer in account.transfers_out.all():
             if transfer.to_account_id not in included_ids:
@@ -562,6 +611,9 @@ def budget_flow(mode: str, period: Period, account_ids: Iterable[int] | None = N
             pair = (min(account.id, transfer.to_account_id), max(account.id, transfer.to_account_id))
             signed = amount if account.id == pair[0] else -amount
             net_transfers[pair] = net_transfers.get(pair, ZERO) + signed
+
+    for (account_id, category_name), amount in category_bill_totals.items():
+        add_link(account_names[account_id], category_node(category_name), amount, "bill")
 
     # One netted link per account pair — avoids a 2-node cycle, which ECharts'
     # sankey (a DAG layout) can't render.
