@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — Quaterdeck{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+{% block content %}
+{% url 'tasks:task_edit' task.pk as edit_url %}
+{% url 'tasks:task_delete' task.pk as delete_url %}
+{% include "_page_header.html" with title=task.title edit_url=edit_url delete_url=delete_url %}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <span class="badge {% if task.priority == 'high' %}bg-danger{% elif task.priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+    {% include "_icon.html" with name="flag-fill" class="me-1" %}{{ task.get_priority_display }}
+  </span>
+  <span class="badge border text-body-secondary">
+    {% if task.status == 'done' %}{% include "_icon.html" with name="check-circle-fill" class="me-1" %}
+    {% elif task.status == 'in_progress' %}{% include "_icon.html" with name="arrow-repeat" class="me-1" %}
+    {% else %}{% include "_icon.html" with name="dash-circle" class="me-1" %}
+    {% endif %}{{ task.get_status_display }}
+  </span>
+</div>
+
+<dl class="row small">
+  <dt class="col-4 col-md-3">Due date</dt>
+  <dd class="col-8 col-md-9">{{ task.due_date|default:"—" }}</dd>
+  <dt class="col-4 col-md-3">Budget amount</dt>
+  <dd class="col-8 col-md-9">{{ task.budget_amount|default:"—" }}</dd>
+  <dt class="col-4 col-md-3">Project</dt>
+  <dd class="col-8 col-md-9">
+    {% if task.linked_project %}
+    <a href="{{ task.linked_project.get_absolute_url }}">{{ task.linked_project.name }}</a>
+    {% else %}—{% endif %}
+  </dd>
+</dl>
+{% endblock %}

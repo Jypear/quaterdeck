@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ outgoing.name }} — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% url 'budget:outgoing_edit' outgoing.pk as edit_url %}
+{% url 'budget:outgoing_delete' outgoing.pk as delete_url %}
+{% include "_page_header.html" with title=outgoing.name subtitle=outgoing.category.name edit_url=edit_url delete_url=delete_url %}
+{% include "budget/_subnav.html" %}
+
+<dl class="row mb-4 small tabular-nums">
+  <dt class="col-6 col-md-3">Amount</dt><dd class="col-6 col-md-9">{{ currency }} {{ outgoing.amount|floatformat:2 }} / {{ outgoing.get_frequency_display }}</dd>
+  <dt class="col-6 col-md-3">Account</dt><dd class="col-6 col-md-9"><a href="{{ outgoing.account.get_absolute_url }}">{{ outgoing.account.name }}</a></dd>
+  {% if outgoing.frequency == "yearly" %}
+  <dt class="col-6 col-md-3">Yearly billing</dt><dd class="col-6 col-md-9">{{ outgoing.get_yearly_billing_display }}</dd>
+  {% endif %}
+</dl>
+
+{% for pot in outgoing.pots_linked.all %}
+<p class="small text-muted">Linked pot: <a href="{{ pot.get_absolute_url }}">{{ pot.name }}</a></p>
+{% endfor %}
+
+<h2 class="h6 text-muted mt-4">Upcoming payments</h2>
+{% if upcoming_dates %}
+<ul class="list-group">
+  {% for date in upcoming_dates %}
+  <li class="list-group-item">{{ date|date:"D d M Y" }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-0">Unscheduled — set a recurring day to see upcoming dates.</p>
+{% endif %}
+{% endblock %}

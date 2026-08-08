@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
@@ -12,7 +12,7 @@ from django.urls import reverse_lazy
 from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
 
 from budget.forms import (
     AccountForm,
@@ -53,6 +53,7 @@ from budget.services import (
     pot_progress,
     prefetched_accounts,
     resolve_transfer_amounts,
+    scheduled_dates,
     to_display,
 )
 from core.models import Settings
@@ -406,6 +407,119 @@ class FlowView(TemplateView):
         return context
 
 
+# --- Detail views -----------------------------------------------------------
+
+
+class _BudgetDetailMixin:
+    """Shared currency/mode/period context for budget detail views."""
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        mode = _requested_mode(self.request, settings)
+        context["currency"] = settings.currency
+        context["mode"] = mode
+        context["period"] = active_period(mode, settings.budget_start_day)
+        return context
+
+
+def _next_dates(entry: Any, count: int = 6) -> list[date]:
+    """The next `count` scheduled payment dates for a FrequencyMixin entry, from today."""
+    today = date.today()
+    return scheduled_dates(entry, today, today + timedelta(days=366))[:count]
+
+
+class AccountDetailView(_BudgetDetailMixin, DetailView):
+    model = Account
+    template_name = "budget/account_detail.html"
+    context_object_name = "account"
+    queryset = Account.objects.prefetch_related(
+        "income_streams",
+        "outgoings__category",
+        "transfers_in__from_account",
+        "transfers_out__to_account",
+        "one_off_outgoings__linked_pot",
+    )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        mode, period = context["mode"], context["period"]
+        transfer_amounts = resolve_transfer_amounts(prefetched_accounts(), mode, period)
+        for transfer in (*self.object.transfers_out.all(), *self.object.transfers_in.all()):
+            transfer.effective_amount = transfer_amounts.get(transfer.id, ZERO)
+        context["summary"] = account_summary(self.object, mode, period, transfer_amounts)
+        return context
+
+
+class IncomeStreamDetailView(_BudgetDetailMixin, DetailView):
+    model = IncomeStream
+    template_name = "budget/income_detail.html"
+    context_object_name = "income"
+    queryset = IncomeStream.objects.select_related("account")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["upcoming_dates"] = _next_dates(self.object)
+        return context
+
+
+class OutgoingDetailView(_BudgetDetailMixin, DetailView):
+    model = Outgoing
+    template_name = "budget/outgoing_detail.html"
+    context_object_name = "outgoing"
+    queryset = Outgoing.objects.select_related("category", "account").prefetch_related("pots_linked")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["upcoming_dates"] = _next_dates(self.object)
+        return context
+
+
+class TransferDetailView(_BudgetDetailMixin, DetailView):
+    model = Transfer
+    template_name = "budget/transfer_detail.html"
+    context_object_name = "transfer"
+    queryset = Transfer.objects.select_related("from_account", "to_account")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        mode, period = context["mode"], context["period"]
+        transfer_amounts = resolve_transfer_amounts(prefetched_accounts(), mode, period)
+        context["effective_amount"] = transfer_amounts.get(self.object.id, ZERO)
+        context["upcoming_dates"] = _next_dates(self.object)
+        return context
+
+
+class OneOffOutgoingDetailView(_BudgetDetailMixin, DetailView):
+    model = OneOffOutgoing
+    template_name = "budget/oneoff_detail.html"
+    context_object_name = "oneoff"
+    queryset = OneOffOutgoing.objects.select_related("account", "linked_pot")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        if self.object.linked_pot_id:
+            saved = self.object.linked_pot.entries.aggregate(total=Sum("actual_amount"))["total"] or ZERO
+            context["pot_saved"] = saved
+            context["pot_covered"] = saved >= self.object.amount
+        return context
+
+
+class PotDetailView(_BudgetDetailMixin, DetailView):
+    model = Pot
+    template_name = "budget/pot_detail.html"
+    context_object_name = "pot"
+    queryset = Pot.objects.select_related("linked_project", "linked_one_off", "linked_outgoing").prefetch_related(
+        "entries"
+    )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["progress"] = pot_progress(self.object, context["mode"], context["period"])
+        context["entries"] = self.object.entries.all()
+        return context
+
+
 # --- Account / IncomeStream / Outgoing CRUD --------------------------------
 #
 # Plain full-page forms + redirect, not HTMX modals — smallest correct CRUD.
@@ -413,17 +527,22 @@ class FlowView(TemplateView):
 
 
 class _BudgetFormMixin:
-    """Shared template + page title + success message + redirect-to-accounts for CRUD views."""
+    """Shared template + page title + success message for CRUD views.
+
+    No success_url — the model's get_absolute_url() sends Create/Update
+    straight to its detail page (mirrors ProjectDetailView's pattern).
+    Models without a detail page (OutgoingCategory) set success_url explicitly.
+    """
 
     template_name = "budget/_form.html"
-    success_url = reverse_lazy("budget:accounts")
+    cancel_url = reverse_lazy("budget:accounts")
     success_message = "Saved."
     title = ""
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.setdefault("title", self.title)
-        context.setdefault("cancel_url", self.success_url)
+        context.setdefault("cancel_url", self.cancel_url)
         return context
 
     def form_valid(self, form: Any) -> HttpResponse:
@@ -433,13 +552,13 @@ class _BudgetFormMixin:
 
 
 class _PotFormMixin(_BudgetFormMixin):
-    """Same as `_BudgetFormMixin` but redirects to the pots page, not accounts.
+    """Same as `_BudgetFormMixin` but redirects to the pot's detail page.
 
     Honors `?next=` (e.g. a project's detail page) so pots created/edited
-    from that context return there instead of always landing on /pots/.
+    from that context return there instead of always landing on the detail page.
     """
 
-    success_url = reverse_lazy("budget:pots")
+    cancel_url = reverse_lazy("budget:pots")
 
     def get_success_url(self) -> str:
         next_url = self.request.GET.get("next")
@@ -447,7 +566,7 @@ class _PotFormMixin(_BudgetFormMixin):
             next_url, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
         ):
             return next_url
-        return str(self.success_url)
+        return super().get_success_url()
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -575,14 +694,19 @@ class OneOffOutgoingDeleteView(_BudgetDeleteView):
 
 
 class OutgoingCategoryCreateView(_BudgetFormMixin, CreateView):
+    """No detail page for categories — success_url is explicit since there's
+    no get_absolute_url() for ModelFormMixin to fall back to."""
+
     model = OutgoingCategory
     form_class = OutgoingCategoryForm
+    success_url = reverse_lazy("budget:accounts")
     title = "Add category"
 
 
 class OutgoingCategoryUpdateView(_BudgetFormMixin, UpdateView):
     model = OutgoingCategory
     form_class = OutgoingCategoryForm
+    success_url = reverse_lazy("budget:accounts")
     title = "Edit category"
 
 

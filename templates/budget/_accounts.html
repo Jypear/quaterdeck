@@ -13,7 +13,7 @@
   <div class="card {% if row.covered %}border-success{% else %}border-danger{% endif %}">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-start mb-2">
-        <h5 class="card-title mb-0">{{ row.account.name }}</h5>
+        <h5 class="card-title mb-0"><a href="{% url 'budget:account_detail' row.account.id %}" class="link-body-emphasis">{{ row.account.name }}</a></h5>
         <div class="d-flex align-items-center gap-2">
           {% if row.covered %}
           <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
@@ -43,7 +43,7 @@
         {% for income in row.account.income_streams.all %}
         <li class="list-group-item px-0">
           <div class="d-flex align-items-baseline gap-2">
-            <span class="entry-name">{{ income.name }}</span>
+            <a href="{% url 'budget:income_detail' income.id %}" class="entry-name">{{ income.name }}</a>
             <span class="entry-amount tabular-nums">{{ income.amount|floatformat:2 }}</span>
             <span class="entry-freq">{{ income.short_frequency }}</span>
             <span class="entry-actions">
@@ -67,7 +67,7 @@
         {% for outgoing in row.account.filtered_outgoings %}
         <li class="list-group-item px-0 {% if outgoing.due_this_period %}list-group-item-warning{% endif %}">
           <div class="d-flex align-items-baseline gap-2">
-            <span class="entry-name">{{ outgoing.name }}</span>
+            <a href="{% url 'budget:outgoing_detail' outgoing.id %}" class="entry-name">{{ outgoing.name }}</a>
             <span class="entry-amount tabular-nums">{{ outgoing.amount|floatformat:2 }}</span>
             <span class="entry-freq">{{ outgoing.short_frequency }}</span>
             <span class="entry-actions">
@@ -110,7 +110,7 @@
         {% for transfer in row.account.transfers_out.all %}
         <li class="list-group-item px-0">
           <div class="d-flex align-items-baseline gap-2">
-            <span class="entry-name">To {{ transfer.to_account }}</span>
+            <a href="{% url 'budget:transfer_detail' transfer.id %}" class="entry-name">To {{ transfer.to_account }}</a>
             <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
             <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
             <span class="entry-actions">
@@ -128,7 +128,7 @@
         {% for transfer in row.account.transfers_in.all %}
         <li class="list-group-item px-0 text-muted">
           <div class="d-flex align-items-baseline gap-2">
-            <span class="entry-name">From {{ transfer.from_account }}</span>
+            <a href="{% url 'budget:transfer_detail' transfer.id %}" class="entry-name">From {{ transfer.from_account }}</a>
             <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
             <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
           </div>
@@ -153,7 +153,7 @@
         {% for oneoff in row.account.one_off_outgoings.all %}
         <li class="list-group-item px-0">
           <div class="d-flex align-items-baseline gap-2">
-            <span class="entry-name">{{ oneoff.name }}</span>
+            <a href="{% url 'budget:oneoff_detail' oneoff.id %}" class="entry-name">{{ oneoff.name }}</a>
             <span class="entry-amount tabular-nums">{{ oneoff.amount|floatformat:2 }}</span>
             <span class="entry-freq">{{ oneoff.due_date|date:"d/m" }}</span>
             <span class="entry-actions">

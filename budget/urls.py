@@ -12,22 +12,27 @@ urlpatterns = [
     path("flow/", views.FlowView.as_view(), name="flow"),
     # Account CRUD
     path("account/add/", views.AccountCreateView.as_view(), name="account_add"),
+    path("account/<int:pk>/", views.AccountDetailView.as_view(), name="account_detail"),
     path("account/<int:pk>/edit/", views.AccountUpdateView.as_view(), name="account_edit"),
     path("account/<int:pk>/delete/", views.AccountDeleteView.as_view(), name="account_delete"),
     # Income CRUD
     path("income/add/", views.IncomeStreamCreateView.as_view(), name="income_add"),
+    path("income/<int:pk>/", views.IncomeStreamDetailView.as_view(), name="income_detail"),
     path("income/<int:pk>/edit/", views.IncomeStreamUpdateView.as_view(), name="income_edit"),
     path("income/<int:pk>/delete/", views.IncomeStreamDeleteView.as_view(), name="income_delete"),
     # Outgoing CRUD
     path("outgoing/add/", views.OutgoingCreateView.as_view(), name="outgoing_add"),
+    path("outgoing/<int:pk>/", views.OutgoingDetailView.as_view(), name="outgoing_detail"),
     path("outgoing/<int:pk>/edit/", views.OutgoingUpdateView.as_view(), name="outgoing_edit"),
     path("outgoing/<int:pk>/delete/", views.OutgoingDeleteView.as_view(), name="outgoing_delete"),
     # Transfer CRUD
     path("transfer/add/", views.TransferCreateView.as_view(), name="transfer_add"),
+    path("transfer/<int:pk>/", views.TransferDetailView.as_view(), name="transfer_detail"),
     path("transfer/<int:pk>/edit/", views.TransferUpdateView.as_view(), name="transfer_edit"),
     path("transfer/<int:pk>/delete/", views.TransferDeleteView.as_view(), name="transfer_delete"),
     # One-off outgoing CRUD
     path("oneoff/add/", views.OneOffOutgoingCreateView.as_view(), name="oneoff_add"),
+    path("oneoff/<int:pk>/", views.OneOffOutgoingDetailView.as_view(), name="oneoff_detail"),
     path("oneoff/<int:pk>/edit/", views.OneOffOutgoingUpdateView.as_view(), name="oneoff_edit"),
     path("oneoff/<int:pk>/delete/", views.OneOffOutgoingDeleteView.as_view(), name="oneoff_delete"),
     # Outgoing category CRUD
@@ -36,6 +41,7 @@ urlpatterns = [
     path("category/<int:pk>/delete/", views.OutgoingCategoryDeleteView.as_view(), name="category_delete"),
     # Pot CRUD
     path("pot/add/", views.PotCreateView.as_view(), name="pot_add"),
+    path("pot/<int:pk>/", views.PotDetailView.as_view(), name="pot_detail"),
     path("pot/<int:pk>/edit/", views.PotUpdateView.as_view(), name="pot_edit"),
     path("pot/<int:pk>/delete/", views.PotDeleteView.as_view(), name="pot_delete"),
     # Per-period logging

@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse_lazy
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, TemplateView, UpdateView
 
 from core.tables import apply_sort, is_partial
 from projects.models import Project
@@ -74,18 +74,29 @@ class TaskListView(TemplateView):
         return {**super().get_context_data(**kwargs), **_task_table_context(self.request.GET)}
 
 
+class TaskDetailView(DetailView):
+    model = Task
+    template_name = "tasks/detail.html"
+    context_object_name = "task"
+    queryset = Task.objects.select_related("linked_project")
+
+
 class _TaskFormMixin:
-    """Shared template + page title + success message + redirect for CRUD views."""
+    """Shared template + page title + success message for CRUD views.
+
+    No success_url — Task.get_absolute_url() sends Create/Update straight to
+    the detail page, matching the projects/budget apps' pattern.
+    """
 
     template_name = "tasks/_form.html"
-    success_url = reverse_lazy("tasks:list")
+    cancel_url = reverse_lazy("tasks:list")
     success_message = "Saved."
     title = ""
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context.setdefault("title", self.title)
-        context.setdefault("cancel_url", self.success_url)
+        context.setdefault("cancel_url", self.cancel_url)
         return context
 
     def form_valid(self, form: Any) -> HttpResponse:

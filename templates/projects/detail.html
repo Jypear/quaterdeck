@@ -31,7 +31,7 @@
 <ul class="list-group mb-2">
   {% for row in pot_rows %}
   <li class="list-group-item d-flex justify-content-between align-items-center">
-    <a href="{% url 'budget:pot_edit' row.pot.id %}">{{ row.pot.name }}</a>
+    <a href="{% url 'budget:pot_detail' row.pot.id %}">{{ row.pot.name }}</a>
     <span>
       {% if row.status == "ahead" %}
       <span class="badge bg-success">{% include "_icon.html" with name="arrow-up-short" class="me-1" %}Ahead</span>

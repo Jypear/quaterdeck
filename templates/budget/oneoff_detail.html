@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ oneoff.name }} — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% url 'budget:oneoff_edit' oneoff.pk as edit_url %}
+{% url 'budget:oneoff_delete' oneoff.pk as delete_url %}
+{% include "_page_header.html" with title=oneoff.name edit_url=edit_url delete_url=delete_url %}
+{% include "budget/_subnav.html" %}
+
+<dl class="row mb-4 small tabular-nums">
+  <dt class="col-6 col-md-3">Amount</dt><dd class="col-6 col-md-9">{{ currency }} {{ oneoff.amount|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Due</dt><dd class="col-6 col-md-9">{{ oneoff.due_date|date:"D d M Y" }}</dd>
+  <dt class="col-6 col-md-3">Account</dt><dd class="col-6 col-md-9"><a href="{{ oneoff.account.get_absolute_url }}">{{ oneoff.account.name }}</a></dd>
+</dl>
+
+{% if oneoff.linked_pot %}
+<p class="small text-muted">
+  Linked pot: <a href="{{ oneoff.linked_pot.get_absolute_url }}">{{ oneoff.linked_pot.name }}</a>
+  {% if pot_covered %}
+  <span class="badge bg-success ms-1">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
+  {% else %}
+  <span class="badge bg-warning text-dark ms-1">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered ({{ currency }} {{ pot_saved|floatformat:2 }} / {{ oneoff.amount|floatformat:2 }})</span>
+  {% endif %}
+</p>
+{% endif %}
+{% endblock %}

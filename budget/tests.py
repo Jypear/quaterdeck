@@ -1144,3 +1144,160 @@ class TimelineClusteringTests(TestCase):
 
         assert response.status_code == 200
         assert b"timeline-clusters" in response.content
+
+
+class DetailViewSmokeTests(TestCase):
+    """One 200-plus-key-context check per model's new detail page (issue #8)."""
+
+    def setUp(self) -> None:
+        self.account = Account.objects.create(name="Personal")
+        self.other = Account.objects.create(name="Joint")
+        self.category = OutgoingCategory.objects.create(name="Bills")
+
+    def test_account_detail_returns_summary(self) -> None:
+        IncomeStream.objects.create(name="Salary", amount=Decimal("3000"), frequency="monthly", account=self.account)
+        response = self.client.get(reverse("budget:account_detail", args=[self.account.id]))
+        assert response.status_code == 200
+        assert response.context["summary"].account == self.account
+        assert response.context["summary"].income == Decimal("3000")
+
+    def test_income_detail_returns_upcoming_dates(self) -> None:
+        income = IncomeStream.objects.create(
+            name="Salary", amount=Decimal("3000"), frequency="monthly", recurring_day=25, account=self.account
+        )
+        response = self.client.get(reverse("budget:income_detail", args=[income.id]))
+        assert response.status_code == 200
+        assert response.context["income"] == income
+        assert response.context["upcoming_dates"]
+
+    def test_outgoing_detail_returns_upcoming_dates(self) -> None:
+        outgoing = Outgoing.objects.create(
+            name="Rent",
+            amount=Decimal("800"),
+            category=self.category,
+            account=self.account,
+            frequency="monthly",
+            recurring_day=1,
+        )
+        response = self.client.get(reverse("budget:outgoing_detail", args=[outgoing.id]))
+        assert response.status_code == 200
+        assert response.context["outgoing"] == outgoing
+        assert response.context["upcoming_dates"]
+
+    def test_transfer_detail_returns_effective_amount(self) -> None:
+        transfer = Transfer.objects.create(
+            name="Joint contribution",
+            from_account=self.account,
+            to_account=self.other,
+            amount=Decimal("200"),
+            frequency="monthly",
+        )
+        response = self.client.get(reverse("budget:transfer_detail", args=[transfer.id]))
+        assert response.status_code == 200
+        assert response.context["transfer"] == transfer
+        assert response.context["effective_amount"] == Decimal("200")
+
+    def test_oneoff_detail_returns_pot_coverage(self) -> None:
+        pot = Pot.objects.create(
+            name="Car fund", target_amount=Decimal("1000"), target_date=date(2027, 1, 1), monthly_target=Decimal("50")
+        )
+        PotEntry.objects.create(pot=pot, period_start=date(2026, 7, 1), actual_amount=Decimal("300"))
+        oneoff = OneOffOutgoing.objects.create(
+            name="Car service", amount=Decimal("250"), due_date=date(2026, 9, 1), account=self.account, linked_pot=pot
+        )
+        response = self.client.get(reverse("budget:oneoff_detail", args=[oneoff.id]))
+        assert response.status_code == 200
+        assert response.context["oneoff"] == oneoff
+        assert response.context["pot_covered"] is True
+        assert response.context["pot_saved"] == Decimal("300")
+
+    def test_pot_detail_returns_progress_and_contribution_history(self) -> None:
+        pot = Pot.objects.create(
+            name="Holiday", target_amount=Decimal("1200"), target_date=date(2027, 1, 1), monthly_target=Decimal("100")
+        )
+        PotEntry.objects.create(pot=pot, period_start=date(2026, 5, 1), actual_amount=Decimal("50"))
+        PotEntry.objects.create(pot=pot, period_start=date(2026, 6, 1), actual_amount=Decimal("75"))
+
+        response = self.client.get(reverse("budget:pot_detail", args=[pot.id]))
+
+        assert response.status_code == 200
+        assert response.context["progress"].pot == pot
+        content = response.content.decode()
+        assert "50.00" in content
+        assert "75.00" in content
+
+    def test_account_detail_split_transfer_amount_matches_accounts_page(self) -> None:
+        """Guards resolving transfer_amounts across all accounts on the detail
+        page, not just this account — required for split/surplus transfers."""
+        IncomeStream.objects.create(name="A Salary", amount=Decimal("3000"), frequency="monthly", account=self.account)
+        IncomeStream.objects.create(name="B Salary", amount=Decimal("2000"), frequency="monthly", account=self.other)
+        Outgoing.objects.create(
+            name="Joint bills",
+            amount=Decimal("1000"),
+            category=self.category,
+            frequency="monthly",
+            account=self.other,
+        )
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.account, to_account=self.other, calc_method=Transfer.CalcMethod.SPLIT
+        )
+
+        accounts_response = self.client.get(reverse("budget:accounts"))
+        accounts_summary = next(
+            s for s in accounts_response.context["account_summaries"] if s.account.id == self.account.id
+        )
+        expected = next(
+            t.effective_amount for t in accounts_summary.account.transfers_out.all() if t.id == a_to_joint.id
+        )
+
+        detail_response = self.client.get(reverse("budget:account_detail", args=[self.account.id]))
+        actual = next(
+            t.effective_amount for t in detail_response.context["account"].transfers_out.all() if t.id == a_to_joint.id
+        )
+        assert actual == expected
+
+
+class DetailPageLinkTests(TestCase):
+    """List pages link into the new detail pages (issue #8)."""
+
+    def test_accounts_page_links_to_account_detail(self) -> None:
+        account = Account.objects.create(name="Personal")
+        response = self.client.get(reverse("budget:accounts"))
+        assert reverse("budget:account_detail", args=[account.id]).encode() in response.content
+
+    def test_pots_page_links_to_pot_detail(self) -> None:
+        pot = Pot.objects.create(
+            name="Holiday", target_amount=Decimal("1200"), target_date=date(2027, 1, 1), monthly_target=Decimal("100")
+        )
+        response = self.client.get(reverse("budget:pots"))
+        assert reverse("budget:pot_detail", args=[pot.id]).encode() in response.content
+
+
+class FormRedirectTests(TestCase):
+    """Create/Update should land on the object's detail page via get_absolute_url(),
+    not always on the accounts/pots list — except OutgoingCategory, which has no
+    detail page and keeps redirecting to the accounts list."""
+
+    def test_account_create_redirects_to_detail_page(self) -> None:
+        response = self.client.post(reverse("budget:account_add"), {"name": "Savings", "account_type": "savings"})
+        account = Account.objects.get(name="Savings")
+        self.assertRedirects(response, reverse("budget:account_detail", args=[account.id]))
+
+    def test_pot_create_redirects_to_detail_page(self) -> None:
+        response = self.client.post(
+            reverse("budget:pot_add"),
+            {"name": "Holiday 2026", "target_amount": "2000", "target_date": "2026-12-01", "monthly_target": "100"},
+        )
+        pot = Pot.objects.get(name="Holiday 2026")
+        self.assertRedirects(response, reverse("budget:pot_detail", args=[pot.id]))
+
+    def test_pot_create_next_param_still_overrides_detail_redirect(self) -> None:
+        response = self.client.post(
+            reverse("budget:pot_add") + "?next=/budget/pots/",
+            {"name": "Holiday 2027", "target_amount": "2000", "target_date": "2027-12-01", "monthly_target": "100"},
+        )
+        self.assertRedirects(response, "/budget/pots/")
+
+    def test_category_create_still_redirects_to_accounts_list(self) -> None:
+        response = self.client.post(reverse("budget:category_add"), {"name": "Groceries"})
+        self.assertRedirects(response, reverse("budget:accounts"))
