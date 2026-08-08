@@ -168,3 +168,13 @@ class PotEntryForm(_BootstrapModelForm):
     class Meta:
         model = PotEntry
         fields: ClassVar[list[str]] = ["actual_amount"]
+
+
+class IncomeAmountForm(_BootstrapModelForm):
+    """Just the amount — for the dashboard's click-to-edit salary field
+    (see core.views.update_income_amount). Everything else about the income
+    stream is edited via the full IncomeStreamForm."""
+
+    class Meta:
+        model = IncomeStream
+        fields: ClassVar[list[str]] = ["amount"]

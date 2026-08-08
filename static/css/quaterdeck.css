@@ -624,3 +624,29 @@ a.card:hover,
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Dashboard "Money to move" income chips — a compact pill per income stream
+   so editing a salary reads as one flowing row above the transfer list
+   instead of a separate card. Plain custom styling (not .btn) since the
+   pill shape and hover state are bespoke. */
+.money-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  background: none;
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+button.money-chip {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+button.money-chip:hover {
+  border-color: var(--qd-brass);
+  background: rgba(var(--qd-brass-rgb), 0.08);
+}

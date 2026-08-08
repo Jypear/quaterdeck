@@ -5,66 +5,8 @@
 {% block nav_dashboard %}active{% endblock %}
 
 {% block content %}
-<div class="row g-4 mb-4 align-items-center">
-  <div class="col-12 col-lg-4">
-    <div class="helm-gauge-wrap mx-auto">
-      <svg class="helm-gauge" viewBox="0 0 200 200" role="img"
-           aria-label="Outgoings are {{ outgoings_pct }}% of income this period">
-        <g class="helm-gauge-ticks">
-          <line x1="100" y1="12" x2="100" y2="2"/>
-          <line x1="162.2" y1="37.8" x2="169.3" y2="30.7"/>
-          <line x1="188" y1="100" x2="198" y2="100"/>
-          <line x1="162.2" y1="162.2" x2="169.3" y2="169.3"/>
-          <line x1="100" y1="188" x2="100" y2="198"/>
-          <line x1="37.8" y1="162.2" x2="30.7" y2="169.3"/>
-          <line x1="12" y1="100" x2="2" y2="100"/>
-          <line x1="37.8" y1="37.8" x2="30.7" y2="30.7"/>
-        </g>
-        <g transform="rotate(-90 100 100)">
-          <circle cx="100" cy="100" r="80" class="helm-gauge-track"/>
-          <circle cx="100" cy="100" r="80"
-                  class="helm-gauge-fill {% if outgoings_pct >= 100 %}text-danger{% elif outgoings_pct >= 80 %}text-brass{% else %}text-verdigris{% endif %}"
-                  style="--pct: {{ outgoings_pct }};"/>
-        </g>
-      </svg>
-      <div class="helm-gauge-center">
-        <span class="helm-gauge-amount">{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</span>
-        <span class="helm-gauge-label">
-          {% if summary.adjusted_surplus >= 0 %}surplus{% else %}over budget{% endif %}
-          · {{ summary.period.start|date:"d M" }}–{{ summary.period.end|date:"d M" }}
-        </span>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-lg-8">
-    <div class="row g-3 mb-2">
-      <div class="col-6 col-md-4">
-        <div class="card h-100">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-2 text-body-secondary">Income</h6>
-            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_income|floatformat:2 }}</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-4">
-        <div class="card h-100">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-2 text-body-secondary">Outgoings</h6>
-            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_outgoings|floatformat:2 }}</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="card h-100 {% if summary.unallocated_surplus > 0 %}border-brass{% endif %}">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-2 text-body-secondary">Unallocated</h6>
-            <p class="fs-5 mb-0">{{ currency }} {{ summary.unallocated_surplus|floatformat:2 }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    <a href="{% url 'budget:overview' %}" class="small">View full budget &rarr;</a>
-  </div>
+<div id="money-panel">
+  {% include "core/_money_panel.html" %}
 </div>
 
 <div class="row g-4">
@@ -218,4 +160,97 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/echarts/echarts.min.js' %}"></script>
+<script>
+(function () {
+  // A single diverging bar per account (net = surplus/shortfall) rather than
+  // an in/out pair — half the marks, and no value-axis gridlines to read
+  // off: each bar's own end label carries its number. Colours follow the
+  // site palette via CSS custom properties, same approach as
+  // templates/budget/flow.html's sankey.
+  var chart = null;
+  // Accounts that round to a £0 net (fully accounted for) are noise on a
+  // "what needs attention" chart — hidden by default, one click to show them.
+  var showZero = false;
+
+  function render() {
+    var container = document.getElementById("account-chart");
+    var script = document.getElementById("account-chart-data");
+    var toggle = document.getElementById("account-chart-toggle");
+    if (!container || !script) return;
+    var data = JSON.parse(script.textContent);
+    var style = getComputedStyle(document.documentElement);
+    var surplusColor = style.getPropertyValue("--qd-verdigris").trim();
+    var shortfallColor = style.getPropertyValue("--bs-danger").trim();
+    var textColor = style.getPropertyValue("--bs-body-color").trim();
+
+    var accounts = [];
+    var items = [];
+    var hiddenCount = 0;
+    data.accounts.forEach(function (name, i) {
+      var value = data.net[i];
+      if (!showZero && Math.round(value) === 0) {
+        hiddenCount += 1;
+        return;
+      }
+      var positive = value >= 0;
+      var color = positive ? surplusColor : shortfallColor;
+      accounts.push(name);
+      items.push({
+        value: value,
+        itemStyle: { color: color, borderRadius: positive ? [0, 3, 3, 0] : [3, 0, 0, 3] },
+        label: { position: positive ? "right" : "left", color: color }
+      });
+    });
+
+    if (toggle) {
+      toggle.classList.toggle("d-none", hiddenCount === 0 && !showZero);
+      toggle.textContent = showZero ? "Hide zero-balance" : "View all (" + hiddenCount + " hidden)";
+    }
+
+    if (chart) chart.dispose();
+    chart = echarts.init(container);
+    chart.setOption({
+      tooltip: {
+        trigger: "item",
+        valueFormatter: function (value) { return (value >= 0 ? "+" : "") + value.toFixed(2); }
+      },
+      grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
+      xAxis: { type: "value", show: false },
+      yAxis: {
+        type: "category",
+        data: accounts,
+        inverse: true,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: textColor }
+      },
+      series: [{
+        type: "bar",
+        data: items,
+        barWidth: "55%",
+        label: { show: true, formatter: function (p) { return (p.value >= 0 ? "+" : "") + p.value.toFixed(0); } }
+      }]
+    });
+  }
+
+  render();
+
+  document.body.addEventListener("click", function (event) {
+    if (event.target.closest && event.target.closest("#account-chart-toggle")) {
+      showZero = !showZero;
+      render();
+    }
+  });
+  document.body.addEventListener("htmx:afterSettle", function (event) {
+    if (event.target && event.target.id === "money-panel") render();
+  });
+  window.addEventListener("resize", function () {
+    if (chart) chart.resize();
+  });
+})();
+</script>
 {% endblock %}

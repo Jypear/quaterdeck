@@ -353,6 +353,78 @@ def resolve_transfer_amounts(accounts: Iterable[Account], mode: str, period: Per
 
 
 @dataclass
+class TransferRow:
+    transfer: Transfer
+    amount: Decimal
+    pay_date: date | None
+    note: str
+
+
+@dataclass
+class TransferGroup:
+    account: Account
+    rows: list[TransferRow]
+    total: Decimal
+
+
+def transfer_plan(accounts: Iterable[Account], mode: str, period: Period) -> list[TransferGroup]:
+    """Every transfer out of `accounts` for `period`, grouped by source account.
+
+    One row per transfer — the "Money to move" view. Wraps
+    `resolve_transfer_amounts`, adding no new money logic: the payment day
+    comes from `scheduled_dates`, and `note` is a plain-language derivation
+    for `split`/`surplus` transfers so a dynamic amount can be trusted rather
+    than just read.
+
+    Expects the same related-manager prefetch as `resolve_transfer_amounts`.
+    Rows are kept even when the resolved amount is zero — "nothing to move"
+    is itself the answer. Groups are sorted by account name, rows within a
+    group by amount descending.
+    """
+    accounts = list(accounts)
+    by_id = {a.id: a for a in accounts}
+    amounts = resolve_transfer_amounts(accounts, mode, period)
+
+    # ponytail: split shares only sum to the destination's true shortfall when
+    # none of them clamped to zero at resolve time (services.py's own
+    # documented ceiling) — fine for the one-split-pair household this and
+    # resolve_transfer_amounts were both built for.
+    split_required: dict[int, Decimal] = {}
+    for account in accounts:
+        for transfer in account.transfers_out.all():
+            if transfer.calc_method == Transfer.CalcMethod.SPLIT:
+                split_required[transfer.to_account_id] = split_required.get(transfer.to_account_id, ZERO) + amounts.get(
+                    transfer.id, ZERO
+                )
+
+    groups: dict[int, list[TransferRow]] = {}
+    for account in accounts:
+        for transfer in account.transfers_out.all():
+            amount = amounts.get(transfer.id, ZERO)
+            dates = scheduled_dates(transfer, period.start, period.end)
+            if transfer.calc_method == Transfer.CalcMethod.SPLIT:
+                dest = by_id.get(transfer.to_account_id)
+                dest_name = dest.name if dest else "the destination"
+                shortfall = split_required.get(transfer.to_account_id, ZERO)
+                note = f"share of {dest_name}'s {to_display(shortfall)} shortfall, weighted by disposable income"
+            elif transfer.calc_method == Transfer.CalcMethod.SURPLUS:
+                note = "everything left in the account after income, bills and other transfers"
+            else:
+                note = ""
+            groups.setdefault(transfer.from_account_id, []).append(
+                TransferRow(transfer=transfer, amount=amount, pay_date=dates[0] if dates else None, note=note)
+            )
+
+    result = []
+    for account_id, rows in groups.items():
+        if account_id not in by_id:
+            continue
+        rows = sorted(rows, key=lambda r: r.amount, reverse=True)
+        result.append(TransferGroup(account=by_id[account_id], rows=rows, total=sum((r.amount for r in rows), ZERO)))
+    return sorted(result, key=lambda g: g.account.name)
+
+
+@dataclass
 class AccountSummary:
     account: Account
     income: Decimal

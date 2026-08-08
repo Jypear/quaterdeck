@@ -36,6 +36,7 @@ from budget.services import (
     resolve_transfer_amounts,
     scheduled_dates,
     to_display,
+    transfer_plan,
     upcoming_yearly_bills,
 )
 from budget.views import _assign_label_dys, _requested_mode, _timeline_svg
@@ -811,6 +812,103 @@ class DynamicTransferTests(TestCase):
         assert amounts[a_to_spends.id] == amounts[b_to_spends.id] == Decimal("1492.35")
         assert amounts[a_to_joint.id] == Decimal("1500.75")
         assert amounts[b_to_joint.id] == Decimal("499.25")
+
+
+class TransferPlanTests(TestCase):
+    """transfer_plan() is a thin grouping wrapper around
+    resolve_transfer_amounts — this locks down the grouping/subtotals plus
+    the schedule and note fields the wrapper adds on top."""
+
+    def setUp(self) -> None:
+        self.mode = Settings.BudgetMode.MONTHLY
+        self.period = Period(date(2026, 7, 1), date(2026, 8, 1))
+        self.category = OutgoingCategory.objects.create(name="Bills")
+        self.a = Account.objects.create(name="A Personal")
+        self.b = Account.objects.create(name="B Personal")
+        self.joint = Account.objects.create(name="Joint", account_type="joint")
+        IncomeStream.objects.create(name="A Salary", amount=Decimal("3000"), frequency="monthly", account=self.a)
+        IncomeStream.objects.create(name="B Salary", amount=Decimal("2000"), frequency="monthly", account=self.b)
+        Outgoing.objects.create(
+            name="Joint bills",
+            amount=Decimal("1500"),
+            category=self.category,
+            frequency="monthly",
+            account=self.joint,
+        )
+
+    def _plan(self) -> list:
+        return transfer_plan(prefetched_accounts(), self.mode, self.period)
+
+    def test_one_row_per_transfer_grouped_by_source(self) -> None:
+        Transfer.objects.create(
+            name="A standing order",
+            from_account=self.a,
+            to_account=self.joint,
+            amount=Decimal("750"),
+            frequency="monthly",
+            recurring_day=28,
+        )
+        Transfer.objects.create(
+            name="B standing order",
+            from_account=self.b,
+            to_account=self.joint,
+            amount=Decimal("750"),
+            frequency="monthly",
+            recurring_day=28,
+        )
+        groups = self._plan()
+        assert len(groups) == 2
+        assert {g.account.id for g in groups} == {self.a.id, self.b.id}
+        for group in groups:
+            assert len(group.rows) == 1
+            assert group.total == group.rows[0].amount == Decimal("750")
+            assert group.rows[0].pay_date == date(2026, 7, 28)
+            assert group.rows[0].note == ""
+
+    def test_matches_resolve_transfer_amounts(self) -> None:
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        b_to_joint = Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        accounts = prefetched_accounts()
+        expected = resolve_transfer_amounts(accounts, self.mode, self.period)
+        actual = {row.transfer.id: row.amount for group in self._plan() for row in group.rows}
+        assert actual == {a_to_joint.id: expected[a_to_joint.id], b_to_joint.id: expected[b_to_joint.id]}
+
+    def test_split_note_names_the_destination_shortfall(self) -> None:
+        a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        Transfer.objects.create(
+            name="B to joint", from_account=self.b, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+        row = next(r for g in self._plan() for r in g.rows if r.transfer.id == a_to_joint.id)
+        assert "Joint" in row.note
+        assert "1500.00" in row.note
+
+
+class MoneyToMovePlacementTests(TestCase):
+    """Money to move lives on the Overview page (bottom), not Accounts —
+    moved there after the accounts page got too cluttered with it."""
+
+    def setUp(self) -> None:
+        source = Account.objects.create(name="Personal")
+        destination = Account.objects.create(name="Joint")
+        Transfer.objects.create(
+            name="Contribution", from_account=source, to_account=destination, amount=Decimal("500"), frequency="monthly"
+        )
+
+    def test_overview_page_carries_transfer_groups(self) -> None:
+        response = self.client.get(reverse("budget:overview"))
+        assert response.status_code == 200
+        assert len(response.context["transfer_groups"]) == 1
+
+    def test_accounts_page_does_not_carry_transfer_groups(self) -> None:
+        response = self.client.get(reverse("budget:accounts"))
+        assert response.status_code == 200
+        assert "transfer_groups" not in response.context
 
 
 class PotProgressTests(TestCase):

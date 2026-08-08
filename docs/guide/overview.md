@@ -11,7 +11,7 @@ Six sections plus Settings:
 
 | Section | What it's for |
 |---|---|
-| **Dashboard** | Landing page: this period's surplus at a glance, yearly bills due this month or in the next few, and what's coming up in the next two weeks. |
+| **Dashboard** | Landing page: this period's surplus at a glance, a merged **Money to move** panel — click-to-edit income amounts plus every transfer due this period — a net-position-by-account chart, yearly bills due this month or in the next few, and what's coming up in the next two weeks. |
 | **[Budget](budget.md)** | Accounts, income, outgoings, transfers, pots, and two visualisations (Timeline, Flow). The core of the app. |
 | **[Tasks](tasks.md)** | A to-do list, optionally linked to projects or a future payment. |
 | **[Calendar](calendar.md)** | Everything with a date — tasks, one-off payments, pot deadlines, and scheduled recurring entries — on one month grid. |

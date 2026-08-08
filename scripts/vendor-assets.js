@@ -49,6 +49,7 @@ const ICON_NAMES = [
   // status badges
   "check-circle-fill", "exclamation-triangle-fill", "dash-circle", "arrow-repeat",
   "arrow-up-short", "arrow-down-short", "arrow-left-short", "arrow-left-right", "calendar-event", "flag-fill",
+  "info-circle",
 ];
 
 const symbols = ICON_NAMES.map((name) => {
