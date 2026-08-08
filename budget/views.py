@@ -48,8 +48,10 @@ from budget.services import (
     active_period,
     budget_flow,
     budget_summary,
+    category_totals,
     outgoings_percentage,
     pot_progress,
+    prefetched_accounts,
     resolve_transfer_amounts,
     to_display,
 )
@@ -79,9 +81,10 @@ def _requested_mode(request: HttpRequest, settings: Settings) -> str:
     return mode if mode in valid_modes else settings.budget_mode
 
 
-def _requested_account_ids(request: HttpRequest) -> list[int] | None:
-    """Account IDs selected via repeated `?accounts=` params, or None for "all"."""
-    raw_ids = request.GET.getlist("accounts")
+def _requested_ids(request: HttpRequest, param: str) -> list[int] | None:
+    """IDs selected via repeated `?<param>=` params (e.g. `accounts`, `categories`), or
+    None for "all"."""
+    raw_ids = request.GET.getlist(param)
     if not raw_ids:
         return None
     return [int(value) for value in raw_ids if value.isdigit()]
@@ -99,7 +102,7 @@ class BudgetOverviewView(TemplateView):
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
         mode = _requested_mode(self.request, settings)
-        account_ids = _requested_account_ids(self.request)
+        account_ids = _requested_ids(self.request, "accounts")
         period = active_period(mode, settings.budget_start_day)
 
         summary = budget_summary(mode, period, account_ids)
@@ -114,26 +117,22 @@ class BudgetOverviewView(TemplateView):
         return context
 
 
-def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
+def _accounts_context(mode: str, settings: Settings, category_ids: list[int] | None = None) -> dict[str, Any]:
     """Context for the accounts page/partial.
 
     Each pot-linked one-off or outgoing gets `.pot_saved` / `.pot_covered`
     (total saved in the linked pot vs. its amount, `None` when unlinked) so
     the accounts page can show a covered/uncovered badge. Each yearly
     outgoing gets `.due_this_period` so the page can flag a bill that's
-    actually due now, regardless of its `yearly_billing` mode.
+    actually due now, regardless of its `yearly_billing` mode. Each account
+    gets `.filtered_outgoings` — its outgoings narrowed to `category_ids`
+    (all of them when `category_ids` is None) — for the template to iterate
+    instead of the full `outgoings.all()`.
     """
     period = active_period(mode, settings.budget_start_day)
-    accounts = Account.objects.filter(is_active=True).prefetch_related(
-        "income_streams",
-        "outgoings",
-        "transfers_in",
-        "transfers_out",
-        "one_off_outgoings",
-    )
+    accounts = prefetched_accounts()
     pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
     pot_for_outgoing = dict(Pot.objects.filter(linked_outgoing__isnull=False).values_list("linked_outgoing_id", "id"))
-    accounts = list(accounts)
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     for account in accounts:
         for outgoing in account.outgoings.all():
@@ -142,6 +141,11 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
             outgoing.pot_saved = pot_saved.get(pot_id, ZERO) if pot_id else None
             due = _yearly_due(outgoing, period.start) if outgoing.frequency == "yearly" else None
             outgoing.due_this_period = due is not None and due < period.end
+        account.filtered_outgoings = (
+            list(account.outgoings.all())
+            if category_ids is None
+            else [o for o in account.outgoings.all() if o.category_id in category_ids]
+        )
         for oneoff in account.one_off_outgoings.all():
             if oneoff.linked_pot_id:
                 oneoff.pot_saved = pot_saved.get(oneoff.linked_pot_id, ZERO)
@@ -153,6 +157,7 @@ def _accounts_context(mode: str, settings: Settings) -> dict[str, Any]:
         "mode": mode,
         "mode_choices": Settings.BudgetMode.choices,
         "account_summaries": [account_summary(a, mode, period, transfer_amounts) for a in accounts],
+        "category_totals": category_totals(accounts, mode, period, category_ids),
         "currency": settings.currency,
     }
 
@@ -185,7 +190,9 @@ class AccountListView(TemplateView):
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
         mode = _requested_mode(self.request, settings)
-        context.update(_accounts_context(mode, settings))
+        category_ids = _requested_ids(self.request, "categories")
+        context.update(_accounts_context(mode, settings, category_ids))
+        context["selected_category_ids"] = category_ids
         if not _is_partial_request(self.request):
             context["categories"] = OutgoingCategory.objects.all()
         return context
@@ -344,7 +351,7 @@ class TimelineView(TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
-        account_ids = _requested_account_ids(self.request)
+        account_ids = _requested_ids(self.request, "accounts")
 
         current_period = active_period(settings.budget_mode, settings.budget_start_day)
         start = current_period.start
@@ -384,14 +391,16 @@ class FlowView(TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
-        account_ids = _requested_account_ids(self.request)
+        account_ids = _requested_ids(self.request, "accounts")
+        group_by_category = self.request.GET.get("group") == "category"
         period = active_period(settings.budget_mode, settings.budget_start_day)
 
-        graph = budget_flow(settings.budget_mode, period, account_ids)
+        graph = budget_flow(settings.budget_mode, period, account_ids, group_by_category)
 
         context["flow_data"] = _flow_json(graph)
         context["all_accounts"] = Account.objects.filter(is_active=True)
         context["selected_account_ids"] = account_ids
+        context["group_by_category"] = group_by_category
         context["currency"] = settings.currency
         context["has_flows"] = bool(graph.links)
         return context

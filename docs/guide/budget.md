@@ -23,7 +23,11 @@ listed separately.
 
 Recurring expenses (rent, subscriptions, groceries), each with a name, budgeted amount,
 category, frequency, and account. Categories are user-defined — create as many as you
-need (Budget → Accounts → outgoing categories) to group things your way.
+need from the Categories filter row on the Accounts page. Each outgoing shows its
+category as a badge on its row; tick/untick categories in that same filter row to narrow
+which outgoings are shown and see a **By category** total for the active period. The
+Flow tab can also group bills by category instead of listing each one individually (see
+below).
 
 **Yearly outgoings.** A yearly outgoing can be given a due month and day (e.g. an
 insurance renewal due 27 March), which also places it on the calendar and timeline. How
@@ -116,4 +120,7 @@ resulting balance directly below that account's chart.
 ## Flow
 
 A Sankey-style diagram of where money moves between accounts for the period — income in,
-outgoings out, transfers between accounts — as a single picture rather than a table.
+outgoings out, transfers between accounts — as a single picture rather than a table. With
+a realistic number of outgoings, one node per bill gets busy fast — tick **Group bills by
+category** to collapse each account's bills into one node per category instead (one-offs
+bucket into a shared "One-offs" node), then untick it to drill back into individual bills.
