@@ -49,15 +49,19 @@ from budget.services import (
     budget_flow,
     budget_summary,
     category_totals,
+    outgoing_amount,
+    outgoing_rows,
     outgoings_percentage,
     pot_progress,
     prefetched_accounts,
     resolve_transfer_amounts,
     scheduled_dates,
+    sort_outgoing_rows,
     to_display,
     transfer_plan,
 )
 from core.models import Settings
+from core.tables import is_partial
 
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
@@ -92,13 +96,9 @@ def _requested_ids(request: HttpRequest, param: str) -> list[int] | None:
     return [int(value) for value in raw_ids if value.isdigit()]
 
 
-def _is_partial_request(request: HttpRequest) -> bool:
-    return request.headers.get("HX-Request") == "true"
-
-
 class BudgetOverviewView(TemplateView):
     def get_template_names(self) -> list[str]:
-        return ["budget/_summary.html"] if _is_partial_request(self.request) else ["budget/overview.html"]
+        return ["budget/_summary.html"] if is_partial(self.request) else ["budget/overview.html"]
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -121,47 +121,45 @@ class BudgetOverviewView(TemplateView):
         return context
 
 
-def _accounts_context(mode: str, settings: Settings, category_ids: list[int] | None = None) -> dict[str, Any]:
+def _accounts_context(mode: str, settings: Settings, account_ids: list[int] | None = None) -> dict[str, Any]:
     """Context for the accounts page/partial.
 
     Each pot-linked one-off or outgoing gets `.pot_saved` / `.pot_covered`
     (total saved in the linked pot vs. its amount, `None` when unlinked) so
     the accounts page can show a covered/uncovered badge. Each yearly
     outgoing gets `.due_this_period` so the page can flag a bill that's
-    actually due now, regardless of its `yearly_billing` mode. Each account
-    gets `.filtered_outgoings` — its outgoings narrowed to `category_ids`
-    (all of them when `category_ids` is None) — for the template to iterate
-    instead of the full `outgoings.all()`.
+    actually due now, regardless of its `yearly_billing` mode. Each account's
+    outgoings are split into `.capped_outgoings` (its 5 largest, by
+    per-period amount) and `.extra_outgoings` (the rest, tucked behind a
+    <details> in the template) — a long bill list was the single biggest
+    source of page height before the dedicated Outgoings page existed to
+    read every outgoing as one flat table instead (see issue #10).
     """
     period = active_period(mode, settings.budget_start_day)
-    accounts = prefetched_accounts()
+    accounts = prefetched_accounts(account_ids)
     pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
     pot_for_outgoing = dict(Pot.objects.filter(linked_outgoing__isnull=False).values_list("linked_outgoing_id", "id"))
     transfer_amounts = resolve_transfer_amounts(accounts, mode, period)
     for account in accounts:
-        for outgoing in account.outgoings.all():
+        outgoings = list(account.outgoings.all())
+        for outgoing in outgoings:
             pot_id = pot_for_outgoing.get(outgoing.id)
             outgoing.pot_covered = pot_saved.get(pot_id, ZERO) >= outgoing.amount if pot_id else None
             outgoing.pot_saved = pot_saved.get(pot_id, ZERO) if pot_id else None
             due = _yearly_due(outgoing, period.start) if outgoing.frequency == "yearly" else None
             outgoing.due_this_period = due is not None and due < period.end
-        account.filtered_outgoings = (
-            list(account.outgoings.all())
-            if category_ids is None
-            else [o for o in account.outgoings.all() if o.category_id in category_ids]
-        )
+        outgoings.sort(key=lambda o: outgoing_amount(o, mode, period), reverse=True)
+        account.capped_outgoings = outgoings[:5]
+        account.extra_outgoings = outgoings[5:]
         for oneoff in account.one_off_outgoings.all():
             if oneoff.linked_pot_id:
                 oneoff.pot_saved = pot_saved.get(oneoff.linked_pot_id, ZERO)
                 oneoff.pot_covered = oneoff.pot_saved >= oneoff.amount
-        for transfer in (*account.transfers_out.all(), *account.transfers_in.all()):
-            transfer.effective_amount = transfer_amounts.get(transfer.id, ZERO)
 
     return {
         "mode": mode,
         "mode_choices": Settings.BudgetMode.choices,
         "account_summaries": [account_summary(a, mode, period, transfer_amounts) for a in accounts],
-        "category_totals": category_totals(accounts, mode, period, category_ids),
         "currency": settings.currency,
     }
 
@@ -188,16 +186,47 @@ def _pots_context(settings: Settings) -> dict[str, Any]:
 
 class AccountListView(TemplateView):
     def get_template_names(self) -> list[str]:
-        return ["budget/_accounts.html"] if _is_partial_request(self.request) else ["budget/accounts.html"]
+        return ["budget/_accounts.html"] if is_partial(self.request) else ["budget/accounts.html"]
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
         mode = _requested_mode(self.request, settings)
+        account_ids = _requested_ids(self.request, "accounts")
+        context.update(_accounts_context(mode, settings, account_ids))
+        context["selected_account_ids"] = account_ids
+        if not is_partial(self.request):
+            context["all_accounts"] = Account.objects.filter(is_active=True)
+        return context
+
+
+class OutgoingListView(TemplateView):
+    def get_template_names(self) -> list[str]:
+        return ["budget/_outgoings.html"] if is_partial(self.request) else ["budget/outgoings.html"]
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        settings = Settings.get()
+        mode = _requested_mode(self.request, settings)
+        period = active_period(mode, settings.budget_start_day)
+        account_ids = _requested_ids(self.request, "accounts")
         category_ids = _requested_ids(self.request, "categories")
-        context.update(_accounts_context(mode, settings, category_ids))
+
+        rows = outgoing_rows(mode, period, account_ids, category_ids)
+        rows, sort_col, sort_dir = sort_outgoing_rows(rows, self.request.GET.get("sort"), self.request.GET.get("dir"))
+
+        context["mode"] = mode
+        context["mode_choices"] = Settings.BudgetMode.choices
+        context["selected_account_ids"] = account_ids
         context["selected_category_ids"] = category_ids
-        if not _is_partial_request(self.request):
+        context["rows"] = rows
+        context["sort_col"] = sort_col
+        context["sort_dir"] = sort_dir
+        context["total"] = sum((row.period_amount for row in rows), ZERO)
+        context["category_totals"] = category_totals(prefetched_accounts(account_ids), mode, period, category_ids)
+        context["currency"] = settings.currency
+        if not is_partial(self.request):
+            context["all_accounts"] = Account.objects.filter(is_active=True)
             context["categories"] = OutgoingCategory.objects.all()
         return context
 
@@ -350,7 +379,7 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
 
 class TimelineView(TemplateView):
     def get_template_names(self) -> list[str]:
-        return ["budget/_timeline.html"] if _is_partial_request(self.request) else ["budget/timeline.html"]
+        return ["budget/_timeline.html"] if is_partial(self.request) else ["budget/timeline.html"]
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -390,7 +419,7 @@ def _flow_json(graph: FlowGraph) -> dict[str, Any]:
 
 class FlowView(TemplateView):
     def get_template_names(self) -> list[str]:
-        return ["budget/_flow.html"] if _is_partial_request(self.request) else ["budget/flow.html"]
+        return ["budget/_flow.html"] if is_partial(self.request) else ["budget/flow.html"]
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Outgoings — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% url 'budget:outgoing_add' as outgoing_add_url %}
+{% include "_page_header.html" with title="Outgoings" subtitle="Everything going out this period, across every account, biggest first." action_url=outgoing_add_url action_label="Add outgoing" action_icon="plus-lg" %}
+{% include "budget/_subnav.html" %}
+
+<form id="outgoing-filters" class="row g-3 align-items-start mb-4"
+      hx-get="{% url 'budget:outgoings' %}"
+      hx-target="#outgoing-results"
+      hx-push-url="true"
+      hx-trigger="change">
+  <div class="col-auto">
+    <span class="form-label d-block">View</span>
+    <div class="btn-group" role="group" aria-label="Budget view mode">
+      {% for value, label in mode_choices %}
+      <input type="radio" class="btn-check" name="mode" id="out-mode-{{ value }}" value="{{ value }}"
+             {% if value == mode %}checked{% endif %} autocomplete="off">
+      <label class="btn btn-outline-primary" for="out-mode-{{ value }}">{{ label }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col">
+    <span class="form-label d-block">Accounts</span>
+    <div class="d-flex flex-wrap gap-3">
+      {% for account in all_accounts %}
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="accounts" value="{{ account.id }}"
+               id="out-account-{{ account.id }}"
+               {% if not selected_account_ids or account.id in selected_account_ids %}checked{% endif %}>
+        <label class="form-check-label" for="out-account-{{ account.id }}">{{ account.name }}</label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-12">
+    <span class="form-label d-block">Categories</span>
+    <div class="d-flex flex-wrap gap-2">
+      {% for category in categories %}
+      <input type="checkbox" class="btn-check" name="categories" value="{{ category.id }}"
+             id="out-cat-{{ category.id }}"
+             {% if not selected_category_ids or category.id in selected_category_ids %}checked{% endif %} autocomplete="off">
+      <label class="btn btn-sm btn-outline-secondary" for="out-cat-{{ category.id }}">{{ category.name }}</label>
+      {% endfor %}
+    </div>
+  </div>
+</form>
+
+<div id="outgoing-results">
+  {% include "budget/_outgoings.html" %}
+</div>
+{% endblock %}

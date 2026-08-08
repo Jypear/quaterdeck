@@ -16,6 +16,9 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, NamedTuple
 
+from django.db.models import Sum
+from django.urls import reverse
+
 from budget.models import Account, IncomeStream, Outgoing, OutgoingCategory, Pot, PotEntry, Transfer
 from core.models import Settings
 
@@ -576,6 +579,136 @@ def category_totals(
     return [
         CategoryTotal(category=category, total=totals[category]) for category in sorted(totals, key=lambda c: c.name)
     ]
+
+
+@dataclass(frozen=True)
+class OutgoingRow:
+    """One line on the Outgoings page — a recurring `Outgoing`, or a `OneOffOutgoing`
+    falling inside the active period. Everything going out, across every account, as a
+    single flat list rather than nested per-account cards (issue #10: "what am I
+    actually paying for, biggest first" meant reading three cards and holding the
+    result in your head). See `outgoing_rows`."""
+
+    pk: int
+    name: str
+    account: Account
+    category: OutgoingCategory | None  # one-offs have no category
+    amount: Decimal  # as entered
+    freq_label: str  # "wk" / "mth" / "yr" / "one-off"
+    period_amount: Decimal  # normalised into the active period
+    day_label: str  # "Mon" / "12" / "12 Mar" / "03 Sep"
+    day_sort: int  # day-of-month (or weekday) for ordering; 99 when unscheduled
+    detail_url: str
+    edit_url: str
+    is_one_off: bool
+    pot_covered: bool | None
+    pot_saved: Decimal | None
+
+
+def _outgoing_day(outgoing: Outgoing) -> tuple[str, int]:
+    """(label, sort key) for a recurring outgoing's payment day."""
+    if outgoing.recurring_day is None:
+        return "—", 99
+    if outgoing.frequency == "weekly":
+        return calendar.day_abbr[outgoing.recurring_day - 1], outgoing.recurring_day
+    if outgoing.frequency == "yearly":
+        if outgoing.recurring_month is None:
+            return "—", 99
+        return f"{outgoing.recurring_day} {calendar.month_abbr[outgoing.recurring_month]}", outgoing.recurring_day
+    return str(outgoing.recurring_day), outgoing.recurring_day
+
+
+def outgoing_rows(
+    mode: str,
+    period: Period,
+    account_ids: Iterable[int] | None = None,
+    category_ids: Iterable[int] | None = None,
+) -> list[OutgoingRow]:
+    """Every recurring `Outgoing`, plus every `OneOffOutgoing` due in `period`, across
+    `account_ids` (all active accounts when None) — the flat "everything going out"
+    list backing the Outgoings page. `period_amount` is `outgoing_amount()`, not the
+    raw `.amount` — the only figure that accounts for `yearly_billing`. One-offs have
+    no category, so they drop out entirely once any `category_ids` filter is applied
+    (there's nothing for them to match)."""
+    accounts = prefetched_accounts(account_ids)
+    pot_saved = dict(PotEntry.objects.values_list("pot").annotate(total=Sum("actual_amount")))
+    pot_for_outgoing = dict(Pot.objects.filter(linked_outgoing__isnull=False).values_list("linked_outgoing_id", "id"))
+
+    rows: list[OutgoingRow] = []
+    for account in accounts:
+        for outgoing in account.outgoings.all():
+            if category_ids is not None and outgoing.category_id not in category_ids:
+                continue
+            pot_id = pot_for_outgoing.get(outgoing.id)
+            saved = pot_saved.get(pot_id, ZERO) if pot_id else None
+            day_label, day_sort = _outgoing_day(outgoing)
+            rows.append(
+                OutgoingRow(
+                    pk=outgoing.id,
+                    name=outgoing.name,
+                    account=account,
+                    category=outgoing.category,
+                    amount=outgoing.amount,
+                    freq_label=outgoing.short_frequency,
+                    period_amount=outgoing_amount(outgoing, mode, period),
+                    day_label=day_label,
+                    day_sort=day_sort,
+                    detail_url=outgoing.get_absolute_url(),
+                    edit_url=reverse("budget:outgoing_edit", args=[outgoing.id]),
+                    is_one_off=False,
+                    pot_covered=saved >= outgoing.amount if saved is not None else None,
+                    pot_saved=saved,
+                )
+            )
+        if category_ids is None:
+            for oneoff in account.one_off_outgoings.all():
+                if not (period.start <= oneoff.due_date < period.end):
+                    continue
+                saved = pot_saved.get(oneoff.linked_pot_id, ZERO) if oneoff.linked_pot_id else None
+                rows.append(
+                    OutgoingRow(
+                        pk=oneoff.id,
+                        name=oneoff.name,
+                        account=account,
+                        category=None,
+                        amount=oneoff.amount,
+                        freq_label="one-off",
+                        period_amount=oneoff.amount,
+                        day_label=oneoff.due_date.strftime("%d %b"),
+                        day_sort=oneoff.due_date.day,
+                        detail_url=oneoff.get_absolute_url(),
+                        edit_url=reverse("budget:oneoff_edit", args=[oneoff.id]),
+                        is_one_off=True,
+                        pot_covered=saved >= oneoff.amount if saved is not None else None,
+                        pot_saved=saved,
+                    )
+                )
+    return rows
+
+
+_OUTGOING_SORTS = {
+    "name": lambda r: r.name.lower(),
+    "account": lambda r: r.account.name.lower(),
+    "category": lambda r: r.category.name.lower() if r.category else "",
+    "amount": lambda r: r.period_amount,
+    "day": lambda r: r.day_sort,
+}
+
+
+def sort_outgoing_rows(
+    rows: list[OutgoingRow], col: str | None, direction: str | None
+) -> tuple[list[OutgoingRow], str, str]:
+    """Sort `rows` and return `(sorted_rows, resolved_col, resolved_dir)` — mirrors
+    `core.tables.apply_sort`'s `(queryset, col, dir)` contract, but sorts in Python:
+    `period_amount` is computed, not a DB field, and one-offs come from a second model
+    entirely, so this can't go through a `queryset.order_by()`. Falls back to
+    amount/desc (biggest first) for a missing or invalid `col`/`direction` — "biggest
+    first" is the page's whole point."""
+    if col not in _OUTGOING_SORTS:
+        col = "amount"
+    if direction not in ("asc", "desc"):
+        direction = "desc" if col == "amount" else "asc"
+    return sorted(rows, key=_OUTGOING_SORTS[col], reverse=(direction == "desc")), col, direction
 
 
 @dataclass

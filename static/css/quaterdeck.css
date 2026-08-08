@@ -650,3 +650,116 @@ button.money-chip:hover {
   border-color: var(--qd-brass);
   background: rgba(var(--qd-brass-rgb), 0.08);
 }
+
+/* Budget — a denser table style for the Outgoings page, and a handful of
+   pieces (category chips, a compact stat grid, a headline "net" figure)
+   shared with the decluttered Accounts cards. Everything below consumes
+   --bs-* so it follows the light/dark/auto theme for free. */
+.qd-table {
+  font-size: 0.875rem;
+}
+
+.qd-table thead th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  border-bottom-width: 1px;
+}
+
+.qd-table td,
+.qd-table th {
+  padding: 0.55rem 0.6rem;
+}
+
+.qd-table .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A prominent net/total figure — Fraunces, tabular-nums, sized between a
+   heading and a badge so it reads as the one number on the card worth
+   noticing first. */
+.money-figure {
+  font-family: var(--qd-font-display);
+  font-weight: 600;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact replacement for the six-row <dl> that used to sit on every
+   account card — two columns of label/value instead of a full-width
+   Bootstrap .row per line. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.1rem 1rem;
+  font-size: 0.8125rem;
+}
+
+.stat-grid > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stat-grid dt {
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+}
+
+.stat-grid dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Category colour chips. Hue is deterministic per OutgoingCategory (see
+   OutgoingCategory.hue) — a category reads as the same colour everywhere it
+   appears with no colour-picker field to maintain. Fixed saturation/lightness
+   per theme keeps every hue readably distinct from body text. */
+.cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background-color: hsl(var(--cat-hue) 55% 92%);
+  color: hsl(var(--cat-hue) 60% 30%);
+}
+
+[data-bs-theme="dark"] .cat-chip {
+  background-color: hsl(var(--cat-hue) 35% 22%);
+  color: hsl(var(--cat-hue) 65% 82%);
+}
+
+.cat-chip a {
+  color: inherit;
+}
+
+/* Quiet native disclosure for an account card's overflow bills (past the
+   5 largest) — no JS, no Alpine, and it degrades to "just more list items"
+   if CSS fails entirely. */
+details.entry-more > summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+  list-style: none;
+  padding: 0.25rem 0;
+}
+
+details.entry-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.entry-more > summary::before {
+  content: "+ ";
+}
+
+details.entry-more[open] > summary::before {
+  content: "− ";
+}

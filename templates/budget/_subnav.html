@@ -8,6 +8,10 @@
        href="{% url 'budget:accounts' %}">{% include "_icon.html" with name="bank2" %}Accounts</a>
   </li>
   <li class="nav-item">
+    <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'outgoings' %}active{% endif %}"
+       href="{% url 'budget:outgoings' %}">{% include "_icon.html" with name="receipt" %}Outgoings</a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link d-flex align-items-center gap-2 {% if request.resolver_match.url_name == 'pots' %}active{% endif %}"
        href="{% url 'budget:pots' %}">{% include "_icon.html" with name="piggy-bank" %}Pots</a>
   </li>

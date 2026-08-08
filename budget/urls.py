@@ -7,6 +7,7 @@ app_name = "budget"
 urlpatterns = [
     path("", views.BudgetOverviewView.as_view(), name="overview"),
     path("accounts/", views.AccountListView.as_view(), name="accounts"),
+    path("outgoings/", views.OutgoingListView.as_view(), name="outgoings"),
     path("pots/", views.PotListView.as_view(), name="pots"),
     path("timeline/", views.TimelineView.as_view(), name="timeline"),
     path("flow/", views.FlowView.as_view(), name="flow"),
