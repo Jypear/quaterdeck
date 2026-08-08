@@ -24,6 +24,11 @@ amount, a frequency (weekly/monthly/yearly), and the account it lands in. Multip
 streams per account are fine — a joint account might have both partners' contributions
 listed separately.
 
+Salaries change most months, and a salary change is exactly what moves a split/surplus
+transfer's amount — so the Dashboard's income list is click-to-edit: click an amount,
+type the new figure, and the whole money panel (transfers, chart, hero totals) updates
+immediately without a page reload.
+
 ## Outgoings
 
 Recurring expenses (rent, subscriptions, groceries), each with a name, budgeted amount,
@@ -75,6 +80,15 @@ one account to another and are visible from both ends. Each has a name, a
 - **Sweep source surplus** — takes whatever's left in the source account after
   everything else for the period, so a "sweep leftover into savings" transfer doesn't
   need a fixed number at all.
+
+**Money to move.** Because a split or surplus amount recomputes every period, it isn't a
+number you can memorise — it has to be read off the app each time you update a standing
+order. The bottom of the Overview tab (and the Dashboard, see below) shows a **Money to
+move** block: every transfer for the active period, grouped by source account with a
+subtotal and its next payment day. Each row stays to one line — the destination account,
+the amount, and the day — with a small ⓘ next to split/surplus transfers; hover or focus
+it for the plain-language derivation (e.g. "share of Joint's £2,420 shortfall, weighted
+by disposable income") without it cluttering the row.
 
 ## One-off outgoings
 

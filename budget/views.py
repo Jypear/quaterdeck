@@ -55,6 +55,7 @@ from budget.services import (
     resolve_transfer_amounts,
     scheduled_dates,
     to_display,
+    transfer_plan,
 )
 from core.models import Settings
 
@@ -107,6 +108,7 @@ class BudgetOverviewView(TemplateView):
         period = active_period(mode, settings.budget_start_day)
 
         summary = budget_summary(mode, period, account_ids)
+        accounts = prefetched_accounts(account_ids)
 
         context["mode"] = mode
         context["mode_choices"] = Settings.BudgetMode.choices
@@ -115,6 +117,7 @@ class BudgetOverviewView(TemplateView):
         context["summary"] = summary
         context["currency"] = settings.currency
         context["outgoings_pct"] = outgoings_percentage(summary.total_income, summary.total_outgoings)
+        context["transfer_groups"] = transfer_plan(accounts, mode, period)
         return context
 
 
@@ -664,6 +667,17 @@ class TransferCreateView(_BudgetFormMixin, CreateView):
     model = Transfer
     form_class = TransferForm
     title = "Add transfer"
+
+    def get_initial(self) -> dict[str, Any]:
+        """Pre-selects `from_account`/`to_account` from `?from_account=`/`?to_account=`
+        on the "Add transfer" link on an account's card. `_AccountScopedCreateMixin`
+        doesn't fit here — TransferForm has no plain `account` field."""
+        initial = super().get_initial()
+        for param in ("from_account", "to_account"):
+            value = self.request.GET.get(param)
+            if value and value.isdigit():
+                initial[param] = value
+        return initial
 
 
 class TransferUpdateView(_BudgetFormMixin, UpdateView):

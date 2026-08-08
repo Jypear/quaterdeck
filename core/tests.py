@@ -132,6 +132,67 @@ class SettingsViewTests(TestCase):
         assert settings.ai_api_key == "sk-new"
 
 
+class DashboardViewTests(TestCase):
+    """No test previously touched core:dashboard at all."""
+
+    def test_dashboard_renders_the_money_panel(self) -> None:
+        account = Account.objects.create(name="Personal")
+        IncomeStream.objects.create(name="Salary", amount=Decimal("3000"), frequency="monthly", account=account)
+
+        response = self.client.get(reverse("core:dashboard"))
+
+        assert response.status_code == 200
+        assert "transfer_groups" in response.context
+        assert "income_streams" in response.context
+        assert response.context["income_streams"][0].name == "Salary"
+
+
+class IncomeAmountUpdateTests(TestCase):
+    """update_income_amount is the dashboard's click-to-edit salary field —
+    it has to actually move dependent split transfers, and unlike
+    log_pot_entry it must not silently drop an invalid amount."""
+
+    def setUp(self) -> None:
+        self.a = Account.objects.create(name="A Personal")
+        self.b = Account.objects.create(name="B Personal")
+        self.joint = Account.objects.create(name="Joint", account_type="joint")
+        category = OutgoingCategory.objects.create(name="Bills")
+        self.a_salary = IncomeStream.objects.create(
+            name="A Salary", amount=Decimal("3000"), frequency="monthly", account=self.a
+        )
+        IncomeStream.objects.create(name="B Salary", amount=Decimal("2000"), frequency="monthly", account=self.b)
+        Outgoing.objects.create(
+            name="Joint bills", amount=Decimal("1500"), category=category, frequency="monthly", account=self.joint
+        )
+        self.a_to_joint = Transfer.objects.create(
+            name="A to joint", from_account=self.a, to_account=self.joint, calc_method=Transfer.CalcMethod.SPLIT
+        )
+
+    def test_valid_amount_updates_and_moves_dependent_transfers(self) -> None:
+        settings = Settings.get()
+        settings.budget_start_day = 1
+        settings.save()
+
+        response = self.client.post(reverse("core:income_amount", args=[self.a_salary.id]), {"amount": "4000"})
+
+        assert response.status_code == 200
+        self.a_salary.refresh_from_db()
+        assert self.a_salary.amount == Decimal("4000")
+
+        groups = response.context["transfer_groups"]
+        row = next(r for g in groups for r in g.rows if r.transfer.id == self.a_to_joint.id)
+        assert row.amount != Decimal("500")  # the pre-raise split share
+
+    def test_invalid_amount_is_rejected_not_silently_dropped(self) -> None:
+        response = self.client.post(reverse("core:income_amount", args=[self.a_salary.id]), {"amount": "not-a-number"})
+
+        assert response.status_code == 200
+        self.a_salary.refresh_from_db()
+        assert self.a_salary.amount == Decimal("3000")
+        assert response.context["error_income_id"] == self.a_salary.id
+        assert response.context["error_message"]
+
+
 class CalendarViewTests(TestCase):
     def test_budget_period_start_gets_a_marker(self) -> None:
         settings = Settings.get()

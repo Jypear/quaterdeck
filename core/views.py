@@ -9,18 +9,21 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
 
-from budget.models import Pot
+from budget.forms import IncomeAmountForm
+from budget.models import IncomeStream, Pot
 from budget.services import (
+    AccountSummary,
     active_period,
     budget_summary,
     outgoings_percentage,
     pot_progress,
     prefetched_accounts,
+    transfer_plan,
     upcoming_yearly_bills,
 )
 from core.events import CalEvent, month_events
@@ -34,14 +37,52 @@ if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
 
 
+def _account_chart_data(account_summaries: list[AccountSummary]) -> dict[str, Any]:
+    """Net (income + transfers in, minus outgoings + transfers out + one-offs)
+    per account, biggest surplus first — a single diverging bar per account
+    rather than an in/out pair, so the dashboard chart answers "which
+    accounts are short" at a glance instead of needing gridlines read off
+    two bars. Mirrors budget/views.py's `_flow_json`: floats for ECharts,
+    kept out of services.py since it's chart presentation, not domain data."""
+    rows = sorted(account_summaries, key=lambda row: row.net, reverse=True)
+    return {
+        "accounts": [row.account.name for row in rows],
+        "net": [float(row.net) for row in rows],
+    }
+
+
+def _money_panel_context(settings: Settings) -> dict[str, Any]:
+    """Context for the dashboard's money panel: hero stats, "money to move",
+    the editable income list, and the per-account chart. Shared between the
+    initial dashboard render and `update_income_amount`'s HTMX re-render so a
+    salary edit and a fresh page load agree.
+
+    # ponytail: fetches accounts twice (once inside budget_summary, once for
+    # transfer_plan) instead of threading one list through both — the
+    # dashboard isn't a hot path; thread it through if that changes.
+    """
+    period = active_period(settings.budget_mode, settings.budget_start_day)
+    summary = budget_summary(settings.budget_mode, period)
+    accounts = prefetched_accounts()
+    return {
+        "currency": settings.currency,
+        "period": period,
+        "summary": summary,
+        "outgoings_pct": outgoings_percentage(summary.total_income, summary.total_outgoings),
+        "transfer_groups": transfer_plan(accounts, settings.budget_mode, period),
+        "income_streams": IncomeStream.objects.select_related("account").order_by("account__name", "name"),
+        "account_chart_data": _account_chart_data(summary.accounts),
+    }
+
+
 class DashboardView(TemplateView):
     template_name = "core/dashboard.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         settings = Settings.get()
-        period = active_period(settings.budget_mode, settings.budget_start_day)
-        summary = budget_summary(settings.budget_mode, period)
+        context.update(_money_panel_context(settings))
+        period = context["period"]
 
         today = date.today()
         upcoming = month_events(today, today + timedelta(days=14), settings.budget_mode, settings.budget_start_day)
@@ -60,10 +101,6 @@ class DashboardView(TemplateView):
 
         context.update(
             {
-                "currency": settings.currency,
-                "period": period,
-                "summary": summary,
-                "outgoings_pct": outgoings_percentage(summary.total_income, summary.total_outgoings),
                 "upcoming_events": upcoming_events,
                 "pot_rows": pot_rows,
                 "yearly_bills": yearly_bills,
@@ -73,6 +110,32 @@ class DashboardView(TemplateView):
             }
         )
         return context
+
+
+@require_POST
+def update_income_amount(request: HttpRequest, pk: int) -> HttpResponse:
+    """Click-to-edit salary amount on the dashboard. Re-renders the whole
+    money panel (hero stats + money-to-move + chart all move with a salary,
+    since split/surplus transfers depend on it) rather than just the row.
+
+    Unlike log_pot_entry, an invalid amount isn't silently dropped: the
+    panel re-renders with the error attached so the row shows what's wrong.
+    """
+    income = get_object_or_404(IncomeStream, pk=pk)
+    settings = Settings.get()
+    form = IncomeAmountForm(request.POST, instance=income)
+    error_income_id = None
+    error_message = ""
+    if form.is_valid():
+        form.save()
+    else:
+        error_income_id = income.id
+        error_message = " ".join(form.errors.get("amount", ["Invalid amount."]))
+
+    context = _money_panel_context(settings)
+    context["error_income_id"] = error_income_id
+    context["error_message"] = error_message
+    return render(request, "core/_money_panel.html", context)
 
 
 class SettingsUpdateView(UpdateView):

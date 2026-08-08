@@ -1,0 +1,128 @@
+<div class="row g-4 mb-4 align-items-center">
+  <div class="col-12 col-lg-4">
+    <div class="helm-gauge-wrap mx-auto">
+      <svg class="helm-gauge" viewBox="0 0 200 200" role="img"
+           aria-label="Outgoings are {{ outgoings_pct }}% of income this period">
+        <g class="helm-gauge-ticks">
+          <line x1="100" y1="12" x2="100" y2="2"/>
+          <line x1="162.2" y1="37.8" x2="169.3" y2="30.7"/>
+          <line x1="188" y1="100" x2="198" y2="100"/>
+          <line x1="162.2" y1="162.2" x2="169.3" y2="169.3"/>
+          <line x1="100" y1="188" x2="100" y2="198"/>
+          <line x1="37.8" y1="162.2" x2="30.7" y2="169.3"/>
+          <line x1="12" y1="100" x2="2" y2="100"/>
+          <line x1="37.8" y1="37.8" x2="30.7" y2="30.7"/>
+        </g>
+        <g transform="rotate(-90 100 100)">
+          <circle cx="100" cy="100" r="80" class="helm-gauge-track"/>
+          <circle cx="100" cy="100" r="80"
+                  class="helm-gauge-fill {% if outgoings_pct >= 100 %}text-danger{% elif outgoings_pct >= 80 %}text-brass{% else %}text-verdigris{% endif %}"
+                  style="--pct: {{ outgoings_pct }};"/>
+        </g>
+      </svg>
+      <div class="helm-gauge-center">
+        <span class="helm-gauge-amount">{{ currency }} {{ summary.adjusted_surplus|floatformat:2 }}</span>
+        <span class="helm-gauge-label">
+          {% if summary.adjusted_surplus >= 0 %}surplus{% else %}over budget{% endif %}
+          · {{ summary.period.start|date:"d M" }}–{{ summary.period.end|date:"d M" }}
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-8">
+    <div class="row g-3 mb-2">
+      <div class="col-6 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Income</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_income|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Outgoings</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.total_outgoings|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100 {% if summary.unallocated_surplus > 0 %}border-brass{% endif %}">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-body-secondary">Unallocated</h6>
+            <p class="fs-5 mb-0">{{ currency }} {{ summary.unallocated_surplus|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <a href="{% url 'budget:overview' %}" class="small">View full budget &rarr;</a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}Money to move</h2>
+          <div class="d-flex gap-3">
+            <a href="{% url 'budget:income_add' %}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Income</a>
+            <a href="{% url 'budget:transfer_add' %}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Transfer</a>
+          </div>
+        </div>
+
+        {% if income_streams %}
+        <div class="d-flex flex-wrap gap-2 mb-3 pb-3 border-bottom">
+          {% for income in income_streams %}
+          <div x-data="{ editing: {% if error_income_id == income.id %}true{% else %}false{% endif %} }">
+            {% comment %}
+            x-show toggles these two wrappers, not the elements inside them — Bootstrap's .d-flex
+            utility carries !important, which would beat Alpine's inline display:none if x-show
+            landed on the same element.
+            {% endcomment %}
+            <div x-show="!editing">
+              <button type="button" class="money-chip" @click="editing = true" title="{{ income.name }} ({{ income.account.name }})">
+                <span class="text-body-secondary">{{ income.name }}</span>
+                <span class="tabular-nums fw-semibold">{{ currency }} {{ income.amount|floatformat:2 }}</span>
+                {% include "_icon.html" with name="pencil-square" class="ms-1 opacity-50" %}
+              </button>
+            </div>
+            <div x-show="editing">
+              <form class="money-chip d-flex align-items-center gap-1"
+                    hx-post="{% url 'core:income_amount' income.id %}" hx-target="#money-panel" hx-swap="innerHTML">
+                {% csrf_token %}
+                <span class="text-body-secondary small text-nowrap">{{ income.name }}</span>
+                <input type="number" step="0.01" name="amount" class="form-control form-control-sm {% if error_income_id == income.id %}is-invalid{% endif %}" style="width: 6rem;"
+                       value="{{ income.amount }}" autofocus required>
+                <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">{% include "_icon.html" with name="check-lg" label="Save" %}</button>
+              </form>
+            </div>
+            {% if error_income_id == income.id %}
+            <p class="text-danger small mb-0 mt-1">{{ error_message }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% include "budget/_transfer_groups.html" %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Net position by account</h2>
+          <button type="button" id="account-chart-toggle" class="btn btn-sm btn-link p-0 small d-none"></button>
+        </div>
+        {{ account_chart_data|json_script:"account-chart-data" }}
+        <div id="account-chart" style="height: 280px;"></div>
+      </div>
+    </div>
+  </div>
+</div>

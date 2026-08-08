@@ -102,49 +102,6 @@
       {% endif %}
 
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="small text-uppercase text-muted mb-0">Transfers ({{ currency }})</h6>
-        <a href="{% url 'budget:transfer_add' %}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
-      </div>
-      {% if row.account.transfers_out.all or row.account.transfers_in.all %}
-      <ul class="list-group list-group-flush small mb-3">
-        {% for transfer in row.account.transfers_out.all %}
-        <li class="list-group-item px-0">
-          <div class="d-flex align-items-baseline gap-2">
-            <a href="{% url 'budget:transfer_detail' transfer.id %}" class="entry-name">To {{ transfer.to_account }}</a>
-            <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
-            <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
-            <span class="entry-actions">
-              <a href="{% url 'budget:transfer_edit' transfer.id %}" class="link-secondary" title="Edit">{% include "_icon.html" with name="pencil-square" label="Edit transfer" %}</a>
-              <a href="{% url 'budget:transfer_delete' transfer.id %}" class="link-danger ms-1" title="Delete">{% include "_icon.html" with name="trash3" label="Delete transfer" %}</a>
-            </span>
-          </div>
-          {% if transfer.calc_method != "fixed" %}
-          <div class="entry-meta">
-            <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
-          </div>
-          {% endif %}
-        </li>
-        {% endfor %}
-        {% for transfer in row.account.transfers_in.all %}
-        <li class="list-group-item px-0 text-muted">
-          <div class="d-flex align-items-baseline gap-2">
-            <a href="{% url 'budget:transfer_detail' transfer.id %}" class="entry-name">From {{ transfer.from_account }}</a>
-            <span class="entry-amount tabular-nums">{{ transfer.effective_amount|floatformat:2 }}</span>
-            <span class="entry-freq">{% if transfer.calc_method == "fixed" %}{{ transfer.short_frequency }}{% endif %}</span>
-          </div>
-          {% if transfer.calc_method != "fixed" %}
-          <div class="entry-meta">
-            <span class="badge bg-info text-dark">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}{{ transfer.get_calc_method_display }}</span>
-          </div>
-          {% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-muted small mb-3">None yet.</p>
-      {% endif %}
-
-      <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="small text-uppercase text-muted mb-0">One-off outgoings ({{ currency }})</h6>
         <a href="{% url 'budget:oneoff_add' %}?account={{ row.account.id }}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add</a>
       </div>
