@@ -81,7 +81,7 @@
     <tbody>
       {% for row in summary.accounts %}
       <tr>
-        <td>{{ row.account.name }}</td>
+        <td><a href="{% url 'budget:account_detail' row.account.id %}">{{ row.account.name }}</a></td>
         <td class="text-end">{{ currency }} {{ row.income|floatformat:2 }}</td>
         <td class="text-end">{{ currency }} {{ row.outgoings|floatformat:2 }}</td>
         <td class="text-end">{{ currency }} {{ row.transfers_in|floatformat:2 }} in / {{ currency }} {{ row.transfers_out|floatformat:2 }} out</td>

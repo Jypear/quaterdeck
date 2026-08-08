@@ -30,7 +30,9 @@
           {% endif %}
         </form>
       </td>
-      <td class="{% if task.status == 'done' %}text-decoration-line-through{% endif %}">{{ task.title }}</td>
+      <td class="{% if task.status == 'done' %}text-decoration-line-through{% endif %}">
+        <a href="{% url 'tasks:detail' task.pk %}" class="link-body-emphasis">{{ task.title }}</a>
+      </td>
       <td>{{ task.due_date|default:"—" }}</td>
       <td>
         <span class="badge {% if task.priority == 'high' %}bg-danger{% elif task.priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">

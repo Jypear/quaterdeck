@@ -12,6 +12,7 @@ Hierarchy:
 """
 
 from django.db import models
+from django.urls import reverse
 
 
 class FrequencyMixin(models.Model):
@@ -90,6 +91,9 @@ class Account(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def get_absolute_url(self) -> str:
+        return reverse("budget:account_detail", args=[self.pk])
+
 
 class IncomeStream(FrequencyMixin):
     name = models.CharField(max_length=200)
@@ -101,6 +105,9 @@ class IncomeStream(FrequencyMixin):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.account})"
+
+    def get_absolute_url(self) -> str:
+        return reverse("budget:income_detail", args=[self.pk])
 
 
 class Transfer(FrequencyMixin):
@@ -133,6 +140,9 @@ class Transfer(FrequencyMixin):
 
     def __str__(self) -> str:
         return f"{self.name}: {self.from_account} → {self.to_account}"
+
+    def get_absolute_url(self) -> str:
+        return reverse("budget:transfer_detail", args=[self.pk])
 
 
 class OutgoingCategory(models.Model):
@@ -170,6 +180,9 @@ class Outgoing(FrequencyMixin):
     def __str__(self) -> str:
         return f"{self.name} ({self.category})"
 
+    def get_absolute_url(self) -> str:
+        return reverse("budget:outgoing_detail", args=[self.pk])
+
 
 class OneOffOutgoing(models.Model):
     """A single future-dated payment.
@@ -194,6 +207,9 @@ class OneOffOutgoing(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} (due {self.due_date})"
+
+    def get_absolute_url(self) -> str:
+        return reverse("budget:oneoff_detail", args=[self.pk])
 
 
 class Pot(models.Model):
@@ -230,6 +246,9 @@ class Pot(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def get_absolute_url(self) -> str:
+        return reverse("budget:pot_detail", args=[self.pk])
 
 
 class PotEntry(models.Model):

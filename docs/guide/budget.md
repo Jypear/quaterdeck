@@ -12,6 +12,11 @@ Accounts can be selected individually or all together, on every view that suppor
 so you can look at "just my personal account" or "the whole household" without any
 grouping/percentage config to maintain.
 
+Every account, income stream, outgoing, transfer, and one-off name is a link through to
+its own detail page — the account page shows this period's summary and its full list of
+entries; income/outgoing/transfer/one-off pages show their upcoming scheduled payment
+dates.
+
 ## Income
 
 Named income streams (salary, dividends, freelance, a partner's salary, …), each with an
@@ -108,6 +113,10 @@ A pot can optionally link to a **Project**, a **one-off outgoing**, or a **yearl
 outgoing** (see above) — the same covered/uncovered badge appears wherever the linked
 bill is shown. Pot coverage is advisory only: it never deducts from the budget, so
 there's no double-counting between "money saved in the pot" and "bill due".
+
+Click a pot's name to open its detail page, which is where its full contribution
+history lives — every period you've logged an actual amount for, not just the current
+one.
 
 ## Timeline
 

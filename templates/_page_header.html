@@ -1,18 +1,30 @@
 {% comment %}
 Standard page header: title (+ optional subtitle) with a single primary
-action on the right. Usage:
+action, or an Edit/Delete pair, on the right. Usage:
 {% include "_page_header.html" with title="Tasks" subtitle="Track what needs doing" action_url=... action_label="Add task" action_icon="plus-lg" %}
-`subtitle`, `action_url`, `action_label`, `action_class` and `action_icon` are
-all optional. `action_class` defaults to "btn-primary" — pass
-"btn-outline-secondary" for a secondary/navigational action (e.g. "Back to
-endpoints") rather than a CTA.
+{% include "_page_header.html" with title=account.name edit_url=... delete_url=... %}
+`subtitle`, `action_url`, `action_label`, `action_class`, `action_icon`,
+`edit_url` and `delete_url` are all optional. `action_class` defaults to
+"btn-primary" — pass "btn-outline-secondary" for a secondary/navigational
+action (e.g. "Back to endpoints") rather than a CTA. `edit_url`/`delete_url`
+render the Edit/Delete button pair used on detail pages (either may be
+passed alone).
 {% endcomment %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h1 class="h3 mb-0">{{ title }}</h1>
     {% if subtitle %}<p class="text-body-secondary small mb-0 mt-1">{{ subtitle }}</p>{% endif %}
   </div>
-  {% if action_url %}
+  {% if edit_url or delete_url %}
+  <div class="d-flex gap-2">
+    {% if edit_url %}
+    <a href="{{ edit_url }}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="pencil-square" class="me-1" %}Edit</a>
+    {% endif %}
+    {% if delete_url %}
+    <a href="{{ delete_url }}" class="btn btn-sm btn-outline-danger">{% include "_icon.html" with name="trash3" class="me-1" %}Delete</a>
+    {% endif %}
+  </div>
+  {% elif action_url %}
   <a href="{{ action_url }}" class="btn btn-sm {{ action_class|default:"btn-primary" }}">
     {% if action_icon %}{% include "_icon.html" with name=action_icon class="me-1" %}{% endif %}{{ action_label }}</a>
   {% endif %}

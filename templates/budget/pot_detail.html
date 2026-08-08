@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ pot.name }} — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% url 'budget:pot_edit' pot.pk as edit_url %}
+{% url 'budget:pot_delete' pot.pk as delete_url %}
+{% include "_page_header.html" with title=pot.name edit_url=edit_url delete_url=delete_url %}
+{% include "budget/_subnav.html" %}
+
+<div class="mb-3">
+  {% if progress.status == "ahead" %}
+  <span class="badge bg-success">{% include "_icon.html" with name="arrow-up-short" class="me-1" %}Ahead</span>
+  {% elif progress.status == "behind" %}
+  <span class="badge bg-danger">{% include "_icon.html" with name="arrow-down-short" class="me-1" %}Behind</span>
+  {% else %}
+  <span class="badge bg-primary">{% include "_icon.html" with name="dash-circle" class="me-1" %}On track</span>
+  {% endif %}
+</div>
+
+<dl class="row mb-4 small tabular-nums">
+  <dt class="col-6 col-md-3">Target</dt><dd class="col-6 col-md-9">{{ currency }} {{ pot.target_amount|floatformat:2 }} by {{ pot.target_date }}</dd>
+  <dt class="col-6 col-md-3">Saved to date</dt><dd class="col-6 col-md-9">{{ currency }} {{ progress.saved_to_date|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Expected to date</dt><dd class="col-6 col-md-9">{{ currency }} {{ progress.expected_to_date|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Monthly target</dt><dd class="col-6 col-md-9">{{ currency }} {{ pot.monthly_target|floatformat:2 }}</dd>
+</dl>
+
+{% if pot.linked_project %}<p class="small text-muted">Linked project: <a href="{{ pot.linked_project.get_absolute_url }}">{{ pot.linked_project.name }}</a></p>{% endif %}
+{% if pot.linked_one_off %}<p class="small text-muted">Linked to: <a href="{% url 'budget:oneoff_detail' pot.linked_one_off.pk %}">{{ pot.linked_one_off.name }}</a></p>{% endif %}
+{% if pot.linked_outgoing %}<p class="small text-muted">Linked to: <a href="{% url 'budget:outgoing_detail' pot.linked_outgoing.pk %}">{{ pot.linked_outgoing.name }}</a></p>{% endif %}
+
+<h2 class="h6 text-muted mt-4">Contribution history</h2>
+{% if entries %}
+<ul class="list-group">
+  {% for entry in entries %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>{{ entry.period_start }}</span>
+    <span class="tabular-nums">{{ currency }} {{ entry.actual_amount|floatformat:2 }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-0">No contributions logged yet.</p>
+{% endif %}
+{% endblock %}

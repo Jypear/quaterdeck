@@ -74,6 +74,41 @@ class TaskTableFilterTests(TestCase):
         assert self.task_a.title in content
 
 
+class TaskDetailViewTests(TestCase):
+    def test_detail_page_returns_200_with_task_in_context(self) -> None:
+        project = Project.objects.create(name="Kitchen reno")
+        task = Task.objects.create(title="Buy tiles", linked_project=project, budget_amount="150.00")
+        response = self.client.get(reverse("tasks:detail", args=[task.pk]))
+        assert response.status_code == 200
+        assert response.context["task"] == task
+        assert b"Buy tiles" in response.content
+        assert b"Kitchen reno" in response.content
+
+    def test_list_links_to_detail_page(self) -> None:
+        task = Task.objects.create(title="Buy tiles")
+        response = self.client.get(reverse("tasks:list"))
+        assert reverse("tasks:detail", args=[task.pk]).encode() in response.content
+
+
+class TaskFormRedirectTests(TestCase):
+    """Create/Update should land on the task's detail page via get_absolute_url(),
+    not always on the list — mirrors the projects/budget apps' pattern."""
+
+    def test_create_redirects_to_detail_page(self) -> None:
+        response = self.client.post(
+            reverse("tasks:task_add"), {"title": "New task", "priority": "medium", "status": "todo"}
+        )
+        task = Task.objects.get(title="New task")
+        self.assertRedirects(response, reverse("tasks:detail", args=[task.pk]))
+
+    def test_update_redirects_to_detail_page(self) -> None:
+        task = Task.objects.create(title="Old title")
+        response = self.client.post(
+            reverse("tasks:task_edit", args=[task.pk]), {"title": "New title", "priority": "medium", "status": "todo"}
+        )
+        self.assertRedirects(response, reverse("tasks:detail", args=[task.pk]))
+
+
 class TaskCreateDatePrefillTests(TestCase):
     """Regression: the calendar's "+" links pass `?date=` to pre-fill due_date."""
 

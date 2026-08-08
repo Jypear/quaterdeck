@@ -7,6 +7,8 @@ open it first.
 A task can optionally be linked to a **Project**, which makes it show up on that
 project's detail page alongside its notes and pots.
 
+Click a task's title to open its own detail page.
+
 ## Tasks as future payments
 
 A task can also carry a `budget_amount` — for a large upcoming payment you want to track

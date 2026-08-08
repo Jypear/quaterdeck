@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ account.name }} — Quaterdeck{% endblock %}
+{% block nav_budget %}active{% endblock %}
+{% block content %}
+{% url 'budget:account_edit' account.pk as edit_url %}
+{% url 'budget:account_delete' account.pk as delete_url %}
+{% include "_page_header.html" with title=account.name subtitle=account.get_account_type_display edit_url=edit_url delete_url=delete_url %}
+{% include "budget/_subnav.html" %}
+
+<div class="mb-3">
+  {% if summary.covered %}
+  <span class="badge bg-success">{% include "_icon.html" with name="check-circle-fill" class="me-1" %}Covered</span>
+  {% else %}
+  <span class="badge bg-danger">{% include "_icon.html" with name="exclamation-triangle-fill" class="me-1" %}Uncovered</span>
+  {% endif %}
+</div>
+
+<dl class="row mb-4 small tabular-nums">
+  <dt class="col-6 col-md-3">Income</dt><dd class="col-6 col-md-9">{{ currency }} {{ summary.income|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Outgoings</dt><dd class="col-6 col-md-9">{{ currency }} {{ summary.outgoings|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Transfers in</dt><dd class="col-6 col-md-9">{{ currency }} {{ summary.transfers_in|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">Transfers out</dt><dd class="col-6 col-md-9">{{ currency }} {{ summary.transfers_out|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3">One-offs due</dt><dd class="col-6 col-md-9">{{ currency }} {{ summary.one_offs|floatformat:2 }}</dd>
+  <dt class="col-6 col-md-3 fw-bold">Net</dt><dd class="col-6 col-md-9 fw-bold">{{ currency }} {{ summary.net|floatformat:2 }}</dd>
+</dl>
+
+<h2 class="h6 text-muted">Income streams</h2>
+{% if account.income_streams.all %}
+<ul class="list-group mb-4">
+  {% for income in account.income_streams.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{% url 'budget:income_detail' income.pk %}">{{ income.name }}</a>
+    <span class="text-muted small">{{ currency }} {{ income.amount|floatformat:2 }} / {{ income.short_frequency }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-4">None yet.</p>
+{% endif %}
+
+<h2 class="h6 text-muted">Outgoings</h2>
+{% if account.outgoings.all %}
+<ul class="list-group mb-4">
+  {% for outgoing in account.outgoings.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{% url 'budget:outgoing_detail' outgoing.pk %}">{{ outgoing.name }}</a>
+    <span class="text-muted small">{{ currency }} {{ outgoing.amount|floatformat:2 }} / {{ outgoing.short_frequency }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-4">None yet.</p>
+{% endif %}
+
+<h2 class="h6 text-muted">Transfers</h2>
+{% if account.transfers_out.all or account.transfers_in.all %}
+<ul class="list-group mb-4">
+  {% for transfer in account.transfers_out.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{% url 'budget:transfer_detail' transfer.pk %}">To {{ transfer.to_account }}</a>
+    <span class="text-muted small">{{ currency }} {{ transfer.effective_amount|floatformat:2 }}</span>
+  </li>
+  {% endfor %}
+  {% for transfer in account.transfers_in.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center text-muted">
+    <a href="{% url 'budget:transfer_detail' transfer.pk %}">From {{ transfer.from_account }}</a>
+    <span class="small">{{ currency }} {{ transfer.effective_amount|floatformat:2 }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-4">None yet.</p>
+{% endif %}
+
+<h2 class="h6 text-muted">One-off outgoings</h2>
+{% if account.one_off_outgoings.all %}
+<ul class="list-group">
+  {% for oneoff in account.one_off_outgoings.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <a href="{% url 'budget:oneoff_detail' oneoff.pk %}">{{ oneoff.name }}</a>
+    <span class="text-muted small">{{ currency }} {{ oneoff.amount|floatformat:2 }} — {{ oneoff.due_date|date:"d M Y" }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted small mb-0">None yet.</p>
+{% endif %}
+{% endblock %}
