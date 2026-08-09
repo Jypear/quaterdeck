@@ -10,7 +10,6 @@
     </span>
     {% endfor %}
     {% endif %}
-    <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
   </div>
   <p class="money-figure mb-0">{{ currency }} {{ total|floatformat:2 }} <span class="fs-6 fw-normal text-body-secondary">this period</span></p>
 </div>

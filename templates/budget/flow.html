@@ -24,8 +24,7 @@
       {% endfor %}
     </div>
   </div>
-  <div class="col-auto">
-    <span class="form-label d-block">&nbsp;</span>
+  <div class="col-12">
     <div class="form-check form-switch">
       <input class="form-check-input" type="checkbox" name="group" value="category" id="flow-group-category"
              {% if group_by_category %}checked{% endif %}>
@@ -83,6 +82,13 @@
 
     if (chart) chart.dispose();
     chart = echarts.init(container);
+
+    // Nodes with no outgoing link are the rightmost column — label them on
+    // the inside (to the left) like ECharts' default `right: '20%'` reserved
+    // space assumed, now that left/right are symmetric for centering.
+    var sources = {};
+    graph.links.forEach(function (link) { sources[link.source] = true; });
+
     chart.setOption({
       tooltip: {
         trigger: "item",
@@ -91,11 +97,17 @@
       },
       series: [{
         type: "sankey",
+        left: "3%",
+        right: "3%",
         emphasis: { focus: "adjacency" },
         nodeAlign: "justify",
         label: { color: "inherit" },
         data: graph.data.map(function (node) {
-          return { name: node.name, itemStyle: { color: kindColor(node.kind) } };
+          return {
+            name: node.name,
+            itemStyle: { color: kindColor(node.kind) },
+            label: { position: sources[node.name] ? "right" : "left" }
+          };
         }),
         links: graph.links.map(function (link) {
           return {

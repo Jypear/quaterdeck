@@ -367,7 +367,6 @@ class TransferRow:
 class TransferGroup:
     account: Account
     rows: list[TransferRow]
-    total: Decimal
 
 
 def transfer_plan(accounts: Iterable[Account], mode: str, period: Period) -> list[TransferGroup]:
@@ -423,7 +422,7 @@ def transfer_plan(accounts: Iterable[Account], mode: str, period: Period) -> lis
         if account_id not in by_id:
             continue
         rows = sorted(rows, key=lambda r: r.amount, reverse=True)
-        result.append(TransferGroup(account=by_id[account_id], rows=rows, total=sum((r.amount for r in rows), ZERO)))
+        result.append(TransferGroup(account=by_id[account_id], rows=rows))
     return sorted(result, key=lambda g: g.account.name)
 
 

@@ -2,8 +2,7 @@
 {% block title %}Outgoings — Quaterdeck{% endblock %}
 {% block nav_budget %}active{% endblock %}
 {% block content %}
-{% url 'budget:outgoing_add' as outgoing_add_url %}
-{% include "_page_header.html" with title="Outgoings" subtitle="Everything going out this period, across every account, biggest first." action_url=outgoing_add_url action_label="Add outgoing" action_icon="plus-lg" %}
+{% include "_page_header.html" with title="Outgoings" subtitle="Everything going out this period, across every account, biggest first." %}
 {% include "budget/_subnav.html" %}
 
 <form id="outgoing-filters" class="row g-3 align-items-start mb-4"
