@@ -1,11 +1,16 @@
-"""Middleware that optionally gates the entire app behind session auth."""
+"""Middleware that optionally gates the entire app behind session auth, plus
+HTMX support middleware."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+from django.contrib import messages
 from django.shortcuts import redirect
+from django.template.loader import render_to_string
+
+from core.tables import is_partial
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -47,3 +52,28 @@ class RequireLoginMiddleware:
             return Settings.get().require_login
         except Exception:
             return False
+
+
+class HtmxMessagesMiddleware:
+    """Render queued messages into htmx partial responses as an out-of-band swap.
+
+    Partials don't extend base.html, so they never iterate the message storage —
+    the message would otherwise sit unconsumed and surface on whatever full page
+    the user loads next instead of the one that triggered it (issue #13).
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        if (
+            is_partial(request)
+            and response.status_code == 200
+            and response.get("Content-Type", "").startswith("text/html")
+            and hasattr(response, "content")
+        ):
+            storage = messages.get_messages(request)
+            if not storage.used and len(storage):
+                response.write(render_to_string("_messages.html", {"messages": storage, "oob": True}, request))
+        return response

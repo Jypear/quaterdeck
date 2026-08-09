@@ -59,6 +59,10 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Quaterdeck: gates the whole app when REQUIRE_LOGIN is enabled
     "core.middleware.RequireLoginMiddleware",
+    # Quaterdeck: OOB-renders queued messages into htmx partials (issue #13).
+    # Must sit below MessageMiddleware so it marks messages used before
+    # MessageMiddleware.process_response decides what to persist.
+    "core.middleware.HtmxMessagesMiddleware",
     # Must be last so it wraps (and times) the fully-processed response.
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
