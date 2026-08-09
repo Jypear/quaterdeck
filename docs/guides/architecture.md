@@ -19,6 +19,12 @@ submissions, list refreshes) without a full SPA. Alpine.js handles lightweight
 client-side state only — used sparingly for things HTMX can't do (open/close toggles,
 local UI state). Bootstrap 5, mobile-first from day one.
 
+Views that call `django.contrib.messages` and respond with an HTMX partial don't
+need to do anything special: `core.middleware.HtmxMessagesMiddleware` detects
+unconsumed messages on an `HX-Request` response and appends them as an
+`hx-swap-oob` fragment targeting `#messages` (the container in `base.html`), so
+they show up immediately instead of leaking onto whatever full page loads next.
+
 ## Auth model
 
 Single-user per instance. The `REQUIRE_LOGIN` setting (stored in the `Settings` model)

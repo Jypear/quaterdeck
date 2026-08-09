@@ -971,6 +971,20 @@ class LogPotEntryViewTests(TestCase):
         progress = pot_progress(self.pot, Settings.BudgetMode.MONTHLY, self.period)
         assert progress.saved_to_date == Decimal("150")
 
+    def test_htmx_response_carries_the_success_message_oob(self) -> None:
+        """Issue #13: the partial itself must render the message, not just queue it."""
+        url = reverse("budget:log_pot_entry", args=[self.pot.id])
+        response = self.client.post(url, {"actual_amount": "150"}, HTTP_HX_REQUEST="true")
+        content = response.content.decode()
+        assert "hx-swap-oob" in content
+        assert f"Logged saved amount for {self.pot.name}." in content
+
+    def test_message_does_not_leak_onto_the_next_full_page(self) -> None:
+        url = reverse("budget:log_pot_entry", args=[self.pot.id])
+        self.client.post(url, {"actual_amount": "150"}, HTTP_HX_REQUEST="true")
+        response = self.client.get(reverse("budget:accounts"))
+        assert f"Logged saved amount for {self.pot.name}." not in response.content.decode()
+
 
 class OneOffPotCoverageTests(TestCase):
     """Pot-linked one-offs get a computed `.pot_covered` / `.pot_saved` via _accounts_context."""
