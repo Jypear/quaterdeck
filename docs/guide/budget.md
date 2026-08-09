@@ -32,12 +32,12 @@ immediately without a page reload.
 ## Outgoings
 
 Recurring expenses (rent, subscriptions, groceries), each with a name, budgeted amount,
-category, frequency, and account. Categories are user-defined — create as many as you
-need from the Categories filter row on the Accounts page. Each outgoing shows its
-category as a badge on its row; tick/untick categories in that same filter row to narrow
-which outgoings are shown and see a **By category** total for the active period. The
-Flow tab can also group bills by category instead of listing each one individually (see
-below).
+category, frequency, and account. Categories are user-defined — create and edit them
+from the Categories strip on the Accounts page (or via the account page's add menu).
+Each outgoing shows its category as a badge on its row; the Outgoings tab's filter row
+lets you tick/untick categories to narrow which outgoings are shown and see a **By
+category** total for the active period. The Flow tab can also group bills by category
+instead of listing each one individually (see below).
 
 **Yearly outgoings.** A yearly outgoing can be given a due month and day (e.g. an
 insurance renewal due 27 March), which also places it on the calendar and timeline. How
@@ -84,11 +84,12 @@ one account to another and are visible from both ends. Each has a name, a
 **Money to move.** Because a split or surplus amount recomputes every period, it isn't a
 number you can memorise — it has to be read off the app each time you update a standing
 order. The bottom of the Overview tab (and the Dashboard, see below) shows a **Money to
-move** block: every transfer for the active period, grouped by source account with a
-subtotal and its next payment day. Each row stays to one line — the destination account,
-the amount, and the day — with a small ⓘ next to split/surplus transfers; hover or focus
-it for the plain-language derivation (e.g. "share of Joint's £2,420 shortfall, weighted
-by disposable income") without it cluttering the row.
+move** block: every transfer for the active period, grouped by source account, with its
+next payment day. Each row stays to one line — the destination account, the amount, and
+the day — with a small ⓘ next to split/surplus transfers; hover or focus it for the
+plain-language derivation (e.g. "share of Joint's £2,420 shortfall, weighted by
+disposable income") without it cluttering the row. Each row has an edit/delete pencil,
+but a *new* transfer is added from the Accounts page.
 
 ## One-off outgoings
 

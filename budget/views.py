@@ -197,6 +197,14 @@ class AccountListView(TemplateView):
         context["selected_account_ids"] = account_ids
         if not is_partial(self.request):
             context["all_accounts"] = Account.objects.filter(is_active=True)
+            context["categories"] = OutgoingCategory.objects.all()
+            context["action_menu"] = [
+                {"url": reverse_lazy("budget:income_add"), "label": "Add income", "icon": "cash-coin"},
+                {"url": reverse_lazy("budget:outgoing_add"), "label": "Add outgoing", "icon": "receipt"},
+                {"url": reverse_lazy("budget:oneoff_add"), "label": "Add one-off outgoing", "icon": "calendar-event"},
+                {"url": reverse_lazy("budget:transfer_add"), "label": "Add transfer", "icon": "arrow-left-right"},
+                {"url": reverse_lazy("budget:category_add"), "label": "Add category", "icon": "tag"},
+            ]
         return context
 
 
@@ -259,7 +267,14 @@ def _assign_label_dys(labels: list[tuple[float, float]]) -> list[float | None]:
     bleed into the lane above or below.
     ponytail: labels beyond the cap silently disappear rather than
     truncating/wrapping; revisit with leader lines if that turns out to
-    hide something the count badge doesn't already convey."""
+    hide something the count badge doesn't already convey.
+
+    ponytail: collision math runs in a fixed ~960 logical-px space
+    (`_TIMELINE_CHART_WIDTH`/`_TIMELINE_CHART_LEFT`) that's then rendered as
+    a % of the lane's actual fluid width — estimates go stale (labels can
+    overlap) below that width, i.e. near `.timeline-grid`'s 700px
+    min-width. Revisit by estimating label width as a % too if that's ever
+    reported as crowding on narrow viewports."""
     slot_xmax: list[float] = []  # last occupied right-edge per slot
     dys: list[float | None] = []
     for cx, w in labels:
@@ -297,15 +312,24 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
     since the SVG itself has no good way to hold a variable-length list.
     """
     total_days = (end - start).days or 1
+    total_width = _TIMELINE_CHART_WIDTH + _TIMELINE_CHART_LEFT
 
     def x_for(d: date) -> float:
+        """Position in the same fixed logical-px space the label-collision
+        math (`_assign_label_dys`) was tuned against. Rendering converts this
+        to a % of the lane's actual (fluid) width via `pct_for` — see
+        `_assign_label_dys`'s docstring for the resulting ponytail ceiling."""
         return _TIMELINE_CHART_LEFT + (d - start).days / total_days * _TIMELINE_CHART_WIDTH
+
+    def pct_for(x_px: float) -> float:
+        return x_px / total_width * 100
 
     axis_ticks = []
     year, month = start.year, start.month
     while date(year, month, 1) < end:
         month_start = date(year, month, 1)
-        axis_ticks.append({"x": x_for(max(month_start, start)), "label": month_start.strftime("%b %Y")})
+        x = x_for(max(month_start, start))
+        axis_ticks.append({"x_pct": pct_for(x), "label": month_start.strftime("%b %Y")})
         year, month = _shift_month(year, month, 1)
 
     line_y = _TIMELINE_LANE_HEIGHT / 2
@@ -335,7 +359,7 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
             clusters.append(
                 {
                     "id": cluster_id,
-                    "x": cx,
+                    "x_pct": pct_for(cx),
                     "y": line_y,
                     "r": 6 if count == 1 else min(6 + (count - 1) * 1.5, _TIMELINE_MAX_MARKER_RADIUS),
                     "count": count,
@@ -345,7 +369,7 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
                     "balance_str": balance_str,
                 }
             )
-            hover_points.append({"x": cx, "balance": balance_str, "date": d.strftime("%d %b")})
+            hover_points.append({"x_pct": pct_for(cx), "balance": balance_str, "date": d.strftime("%d %b")})
             cluster_details[cluster_id] = {
                 "account": lane.account.name,
                 "date": d.strftime("%a %d %b %Y"),
@@ -368,7 +392,6 @@ def _timeline_svg(lanes: list[AccountLane], start: date, end: date, currency: st
         )
 
     return {
-        "width": _TIMELINE_CHART_WIDTH + _TIMELINE_CHART_LEFT,
         "lane_height": _TIMELINE_LANE_HEIGHT,
         "line_y": line_y,
         "lanes": lane_rows,

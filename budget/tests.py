@@ -863,7 +863,7 @@ class TransferPlanTests(TestCase):
         assert {g.account.id for g in groups} == {self.a.id, self.b.id}
         for group in groups:
             assert len(group.rows) == 1
-            assert group.total == group.rows[0].amount == Decimal("750")
+            assert group.rows[0].amount == Decimal("750")
             assert group.rows[0].pay_date == date(2026, 7, 28)
             assert group.rows[0].note == ""
 

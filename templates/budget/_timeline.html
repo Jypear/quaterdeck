@@ -2,10 +2,10 @@
 <p class="text-muted">No scheduled income, outgoings, or transfers fall in this window for the selected accounts.</p>
 {% else %}
 <div class="timeline-scroll">
-  <div class="timeline-grid" style="width: {{ svg.width }}px;">
+  <div class="timeline-grid">
     {% for tick in svg.axis_ticks %}
-    <div class="timeline-axis-line" style="left: {{ tick.x }}px;"></div>
-    <div class="timeline-axis-label" style="left: {{ tick.x }}px;">{{ tick.label }}</div>
+    <div class="timeline-axis-line" style="left: {{ tick.x_pct }}%;"></div>
+    <div class="timeline-axis-label" style="left: {{ tick.x_pct }}%;">{{ tick.label }}</div>
     {% endfor %}
     <div class="timeline-crosshair" style="display: none;"></div>
 
@@ -16,21 +16,21 @@
         <strong class="timeline-account-name">{{ lane.account.name }}</strong>
         <span class="timeline-account-balance small text-muted">Net {{ currency }} {{ lane.end_balance_str }}</span>
       </div>
-      <svg viewBox="0 0 {{ svg.width }} {{ svg.lane_height }}" class="timeline-svg" role="img"
+      <svg class="timeline-svg" role="img"
            aria-label="{{ lane.account.name }} timeline from {{ window.start|date:'d M Y' }} to {{ window.end|date:'d M Y' }}"
-           preserveAspectRatio="xMinYMin meet" style="width: {{ svg.width }}px;">
-        <line x1="0" y1="{{ svg.line_y }}" x2="{{ svg.width }}" y2="{{ svg.line_y }}" class="timeline-lane-line" />
+           style="height: {{ svg.lane_height }}px;">
+        <line x1="0" y1="{{ svg.line_y }}" x2="100%" y2="{{ svg.line_y }}" class="timeline-lane-line" />
 
         {% for cluster in lane.clusters %}
         <g class="timeline-stop {{ cluster.css }}" data-cluster="{{ cluster.id }}">
           <title>{{ cluster.date|date:"D d M Y" }} — {{ cluster.label }} — balance {{ currency }} {{ cluster.balance_str }}</title>
-          <circle cx="{{ cluster.x }}" cy="{{ cluster.y }}" r="{{ cluster.r }}" tabindex="0" role="button"
+          <circle cx="{{ cluster.x_pct }}%" cy="{{ cluster.y }}" r="{{ cluster.r }}" tabindex="0" role="button"
                   aria-label="{{ cluster.date|date:'D d M Y' }}, {{ cluster.label }}, balance {{ currency }} {{ cluster.balance_str }}" />
           {% if cluster.count > 1 %}
-          <text x="{{ cluster.x }}" y="{{ cluster.y }}" class="timeline-stop-count" dy="0.35em">{{ cluster.count }}</text>
+          <text x="{{ cluster.x_pct }}%" y="{{ cluster.y }}" class="timeline-stop-count" dy="0.35em">{{ cluster.count }}</text>
           {% endif %}
           {% if cluster.label_dy %}
-          <text x="{{ cluster.x }}" y="{{ cluster.y }}" class="timeline-stop-label" dy="{{ cluster.label_dy }}">
+          <text x="{{ cluster.x_pct }}%" y="{{ cluster.y }}" class="timeline-stop-label" dy="{{ cluster.label_dy }}">
             {{ cluster.label }}
           </text>
           {% endif %}

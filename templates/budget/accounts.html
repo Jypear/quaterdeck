@@ -3,8 +3,19 @@
 {% block nav_budget %}active{% endblock %}
 {% block content %}
 {% url 'budget:account_add' as account_add_url %}
-{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="Add account" action_icon="plus-lg" %}
+{% include "_page_header.html" with title="Accounts" action_url=account_add_url action_label="Add account" action_icon="plus-lg" action_menu=action_menu %}
 {% include "budget/_subnav.html" %}
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4 small">
+  <span class="text-uppercase text-body-secondary">Categories</span>
+  {% for category in categories %}
+  <span class="cat-chip" style="--cat-hue: {{ category.hue }}">
+    {{ category.name }}
+    <a href="{% url 'budget:category_edit' category.id %}" title="Edit category">{% include "_icon.html" with name="pencil-square" label="Edit category" %}</a>
+  </span>
+  {% endfor %}
+  <a href="{% url 'budget:category_add' %}" class="btn btn-sm btn-outline-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add category</a>
+</div>
 
 <form id="account-filters" class="row g-3 align-items-start mb-4"
       hx-get="{% url 'budget:accounts' %}"

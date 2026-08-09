@@ -272,6 +272,7 @@ a:has(> .icon:only-child) {
 .timeline-grid {
   position: relative;
   padding-top: 22px;
+  min-width: 700px;
 }
 
 .timeline-axis-line {
@@ -337,8 +338,6 @@ a:has(> .icon:only-child) {
 
 .timeline-svg {
   width: 100%;
-  min-width: 700px;
-  height: auto;
   display: block;
 }
 

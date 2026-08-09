@@ -1,10 +1,7 @@
 {% if transfer_groups %}
 <div class="card mb-4">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2 class="h6 mb-0">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}Money to move</h2>
-      <a href="{% url 'budget:transfer_add' %}" class="small link-secondary">{% include "_icon.html" with name="plus-lg" class="me-1" %}Add transfer</a>
-    </div>
+    <h2 class="h6 mb-3">{% include "_icon.html" with name="arrow-left-right" class="me-1" %}Money to move</h2>
     {% include "budget/_transfer_groups.html" %}
   </div>
 </div>

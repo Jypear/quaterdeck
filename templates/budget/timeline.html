@@ -42,13 +42,13 @@
   var container = document.getElementById("budget-timeline");
   if (!container) return;
 
-  function balanceAt(account, x) {
+  function balanceAt(account, xPct) {
     var script = document.getElementById(account.dataset.hoverId);
     if (!script) return null;
     var points = JSON.parse(script.textContent);
     var current = null;
     for (var i = 0; i < points.length; i++) {
-      if (points[i].x > x) break;
+      if (points[i].x_pct > xPct) break;
       current = points[i];
     }
     return current;
@@ -67,7 +67,9 @@
   container.addEventListener("mousemove", function (event) {
     var grid = container.querySelector(".timeline-grid");
     if (!grid) return;
-    var x = event.clientX - grid.getBoundingClientRect().left;
+    var rect = grid.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var xPct = x / rect.width * 100;
 
     var crosshair = container.querySelector(".timeline-crosshair");
     if (crosshair) {
@@ -76,7 +78,7 @@
     }
 
     container.querySelectorAll(".timeline-account").forEach(function (account) {
-      var point = balanceAt(account, x);
+      var point = balanceAt(account, xPct);
       var label = account.querySelector(".timeline-account-balance");
       if (!label) return;
       account.classList.add("is-hovering");
